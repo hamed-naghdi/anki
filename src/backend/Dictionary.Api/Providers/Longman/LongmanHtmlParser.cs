@@ -3,6 +3,7 @@ using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using Dictionary.Api.Models;
 using Dictionary.Api.Providers.Longman.Models;
+using static Dictionary.Api.Providers.HtmlExtractionHelpers;
 
 namespace Dictionary.Api.Providers.Longman;
 
@@ -140,7 +141,7 @@ public static partial class LongmanHtmlParser
     {
         var audio = ExtractSpeakerAudio(exampleElem, accentClass: null);
         var glossary = ExtractText(exampleElem, ".GLOSS");
-        var segments = ExtractSegments(exampleElem);
+        var segments = ExtractTextSegments(exampleElem, "COLLOINEXA", ".GLOSS", ".speaker");
 
         var combinedNote = (note, glossary) switch
         {
@@ -151,53 +152,6 @@ public static partial class LongmanHtmlParser
         };
 
         return new LongmanExample { Segments = segments, AudioUrl = audio, Note = combinedNote, Pattern = pattern };
-    }
-
-    /// <summary>
-    /// Splits an example's text into runs, marking text inside .COLLOINEXA (Longman's inline
-    /// bolded collocate, e.g. "aroused"/"curiosity" in "The news <b>aroused</b> a lot of
-    /// <b>curiosity</b>...") as emphasized instead of flattening everything to plain text.
-    /// </summary>
-    private static List<TextSegment> ExtractSegments(IElement exampleElem)
-    {
-        var clone = (IElement)exampleElem.Clone(deep: true);
-        foreach (var excluded in clone.QuerySelectorAll(".GLOSS, .speaker").ToList())
-        {
-            excluded.Remove();
-        }
-
-        var segments = new List<TextSegment>();
-        AppendSegments(clone, emphasized: false, segments);
-
-        if (segments.Count == 0)
-        {
-            return segments;
-        }
-
-        segments[0] = new TextSegment { Text = segments[0].Text.TrimStart(), IsEmphasized = segments[0].IsEmphasized };
-        var lastIndex = segments.Count - 1;
-        segments[lastIndex] = new TextSegment { Text = segments[lastIndex].Text.TrimEnd(), IsEmphasized = segments[lastIndex].IsEmphasized };
-
-        return segments.Where(s => s.Text.Length > 0).ToList();
-    }
-
-    private static void AppendSegments(INode node, bool emphasized, List<TextSegment> segments)
-    {
-        foreach (var child in node.ChildNodes)
-        {
-            if (child is IText textNode)
-            {
-                if (!string.IsNullOrEmpty(textNode.Data))
-                {
-                    segments.Add(new TextSegment { Text = textNode.Data, IsEmphasized = emphasized });
-                }
-            }
-            else if (child is IElement element)
-            {
-                var childEmphasized = emphasized || element.ClassList.Contains("COLLOINEXA");
-                AppendSegments(element, childEmphasized, segments);
-            }
-        }
     }
 
     private static List<Pronunciation> ExtractPronunciations(IElement? headElement)
@@ -355,31 +309,6 @@ public static partial class LongmanHtmlParser
         var src = scope.QuerySelector(selector)?.GetAttribute("data-src-mp3");
         return string.IsNullOrEmpty(src) ? null : StripQueryString(src);
     }
-
-    private static string StripQueryString(string url)
-    {
-        var queryIndex = url.IndexOf('?');
-        return queryIndex >= 0 ? url[..queryIndex] : url;
-    }
-
-    private static string? ExtractText(IElement? scope, string selector)
-    {
-        var text = scope?.QuerySelector(selector)?.TextContent?.Trim();
-        return string.IsNullOrEmpty(text) ? null : text;
-    }
-
-    private static string ExtractTextExcluding(IElement element, string excludeSelector)
-    {
-        var clone = (IElement)element.Clone(deep: true);
-        foreach (var excluded in clone.QuerySelectorAll(excludeSelector).ToList())
-        {
-            excluded.Remove();
-        }
-
-        return clone.TextContent.Trim();
-    }
-
-    private static string? NullIfEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 
     [GeneratedRegex(@"^\(+|\)+$")]
     private static partial Regex SurroundingParensRegex();

@@ -2,6 +2,8 @@ using Dictionary.Api.Http;
 using Dictionary.Api.Providers;
 using Dictionary.Api.Providers.Longman;
 using Dictionary.Api.Providers.Longman.Models;
+using Dictionary.Api.Providers.Oxford;
+using Dictionary.Api.Providers.Oxford.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,7 +18,16 @@ builder.Services
     })
     .AddHttpMessageHandler<PoliteHttpMessageHandler>();
 
+builder.Services
+    .AddHttpClient<OxfordDictionaryProvider>(client =>
+    {
+        client.BaseAddress = new Uri("https://www.oxfordlearnersdictionaries.com/");
+        client.Timeout = TimeSpan.FromSeconds(15);
+    })
+    .AddHttpMessageHandler<PoliteHttpMessageHandler>();
+
 builder.Services.AddScoped<IDictionaryProvider<LongmanDictionaryEntry>>(sp => sp.GetRequiredService<LongmanDictionaryProvider>());
+builder.Services.AddScoped<IDictionaryProvider<OxfordDictionaryEntry>>(sp => sp.GetRequiredService<OxfordDictionaryProvider>());
 
 var app = builder.Build();
 
@@ -33,5 +44,12 @@ app.MapGet("/api/dictionaries/longman/{word}", async (string word, IDictionaryPr
         return Results.Ok(result);
     })
     .WithName("LookupLongmanWord");
+
+app.MapGet("/api/dictionaries/oxford/{word}", async (string word, IDictionaryProvider<OxfordDictionaryEntry> provider, CancellationToken cancellationToken) =>
+    {
+        var result = await provider.LookupAsync(word, cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("LookupOxfordWord");
 
 app.Run();

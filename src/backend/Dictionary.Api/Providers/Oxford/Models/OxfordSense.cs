@@ -1,0 +1,29 @@
+using Dictionary.Api.Models;
+
+namespace Dictionary.Api.Providers.Oxford.Models;
+
+public sealed class OxfordSense : ISense
+{
+    public string? Definition { get; init; }
+    public string? Grammar { get; init; }
+    public string? Register { get; init; }
+
+    // Oxford doesn't expose a clean inline synonym/antonym list on the sense itself (its
+    // "Synonyms" panel is a separate mini-thesaurus entry, not a simple word list), so these
+    // stay empty for now rather than forcing a mismatched extraction.
+    public IReadOnlyList<string> Synonyms { get; init; } = [];
+    public IReadOnlyList<string> Antonyms { get; init; } = [];
+
+    /// <summary>Grammar/collocational frames listed once for the whole sense, e.g. "curiosity (about something)".</summary>
+    public required IReadOnlyList<string> Patterns { get; init; }
+
+    /// <summary>This sense's own CEFR level (Oxford's cefr="c1" attribute), independent of the entry-level keyword level.</summary>
+    public string? CefrLevel { get; init; }
+
+    /// <summary>Whether this specific sense is flagged as an Oxford 3000/5000 keyword sense.</summary>
+    public bool IsKeyword { get; init; }
+
+    public required IReadOnlyList<OxfordExample> Examples { get; init; }
+
+    IReadOnlyList<IExample> ISense.Examples => Examples;
+}
