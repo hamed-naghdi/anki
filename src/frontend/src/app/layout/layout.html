@@ -1,0 +1,150 @@
+<div class="overflow-hidden">
+  <p-sidebar-layout class="min-h-192! relative!">
+    @if (isMobile() && (navOpen() || open())) {
+      <p-sidebar-backdrop class="absolute!" />
+    }
+    <p-sidebar id="nav" side="left" [collapsible]="isMobile() ? 'offcanvas' : 'icon'" [overlay]="isMobile()" [(open)]="navOpen" width="14rem">
+      <p-sidebar-spacer />
+      <p-sidebar-aside>
+        <p-sidebar-panel>
+          <p-sidebar-header>
+            <p-sidebar-menu>
+              <p-sidebar-menu-item>
+                <button pSidebarMenuButton class="p-1!">
+                  <div class="flex size-16 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-violet-500 to-indigo-600 text-white text-s font-bold leading-none">Anki UI</div>
+                  <span class="font-semibold text-sm">Dictionary</span>
+                </button>
+              </p-sidebar-menu-item>
+            </p-sidebar-menu>
+          </p-sidebar-header>
+          <p-sidebar-content>
+            <p-sidebar-group>
+              <p-sidebar-group-label>Navigation</p-sidebar-group-label>
+              <p-sidebar-group-content>
+                <p-sidebar-menu>
+                  <p-sidebar-menu-item>
+                    <button pSidebarMenuButton [isActive]="true">
+                      <svg data-p-icon="home"></svg>
+                      <span>Home</span>
+                    </button>
+                  </p-sidebar-menu-item>
+                  <p-sidebar-menu-item>
+                    <button pSidebarMenuButton>
+                      <svg data-p-icon="inbox"></svg>
+                      <span>Inbox</span>
+                    </button>
+                    <p-sidebar-menu-badge>5</p-sidebar-menu-badge>
+                  </p-sidebar-menu-item>
+                  <p-sidebar-menu-item>
+                    <button pSidebarMenuButton>
+                      <svg data-p-icon="search"></svg>
+                      <span>Search</span>
+                    </button>
+                  </p-sidebar-menu-item>
+                  <p-sidebar-menu-item>
+                    <button pSidebarMenuButton>
+                      <svg data-p-icon="bell"></svg>
+                      <span>Notifications</span>
+                    </button>
+                  </p-sidebar-menu-item>
+                </p-sidebar-menu>
+              </p-sidebar-group-content>
+            </p-sidebar-group>
+            <p-sidebar-group>
+              <p-sidebar-group-label>Projects</p-sidebar-group-label>
+              <p-sidebar-group-content>
+                <p-sidebar-menu>
+                  <p-sidebar-menu-item collapsible [defaultOpen]="true">
+                    <button pSidebarMenuButton>
+                      <svg data-p-icon="chart-bar"></svg>
+                      <span>Analytics</span>
+                      <svg data-p-icon="chevron-down" class="ml-auto transition-transform duration-200"></svg>
+                    </button>
+                    <p-sidebar-menu-sub>
+                      <p-sidebar-menu-sub-item>
+                        <button pSidebarMenuSubButton [isActive]="true">Overview</button>
+                      </p-sidebar-menu-sub-item>
+                      <p-sidebar-menu-sub-item>
+                        <button pSidebarMenuSubButton>Reports</button>
+                      </p-sidebar-menu-sub-item>
+                    </p-sidebar-menu-sub>
+                  </p-sidebar-menu-item>
+                  <p-sidebar-menu-item>
+                    <button pSidebarMenuButton>
+                      <svg data-p-icon="users"></svg>
+                      <span>Team</span>
+                    </button>
+                  </p-sidebar-menu-item>
+                  <p-sidebar-menu-item>
+                    <button pSidebarMenuButton>
+                      <svg data-p-icon="calendar"></svg>
+                      <span>Calendar</span>
+                    </button>
+                  </p-sidebar-menu-item>
+                </p-sidebar-menu>
+              </p-sidebar-group-content>
+            </p-sidebar-group>
+          </p-sidebar-content>
+          <p-sidebar-footer>
+            <p-sidebar-menu>
+              <p-sidebar-menu-item>
+                <button pSidebarMenuButton>
+                  <svg data-p-icon="cog"></svg>
+                  <span>Settings</span>
+                </button>
+              </p-sidebar-menu-item>
+            </p-sidebar-menu>
+          </p-sidebar-footer>
+        </p-sidebar-panel>
+      </p-sidebar-aside>
+    </p-sidebar>
+    <p-sidebar-main>
+      <header class="flex h-12 items-center gap-2 border-b border-surface-200 dark:border-surface-700 px-4">
+        <button pButton pSidebarTrigger target="nav" severity="secondary" text size="small">
+          <svg data-p-icon="sidebar"></svg>
+        </button>
+        <span class="text-sm font-medium flex-1">Dashboard</span>
+      </header>
+      <div class="flex-1 p-4 flex flex-col gap-4">
+        <div
+          class="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-3 flex flex-wrap items-center gap-3"
+        >
+          <p-iconfield class="flex-1 min-w-56 max-w-sm">
+            <p-inputicon>
+              <svg data-p-icon="search"></svg>
+            </p-inputicon>
+            <input
+              pInputText
+              type="text"
+              placeholder="Search a word…"
+              class="w-full"
+              [ngModel]="searchTerm()"
+              (ngModelChange)="searchTerm.set($event)"
+            />
+          </p-iconfield>
+
+          <p-select
+            [options]="decks"
+            [ngModel]="selectedDeck()"
+            (ngModelChange)="selectedDeck.set($event)"
+            placeholder="Deck"
+            class="w-48"
+          />
+
+          <p-select
+            [options]="noteTypes"
+            [ngModel]="selectedNoteType()"
+            (ngModelChange)="selectedNoteType.set($event)"
+            placeholder="Note type"
+            class="w-48"
+          />
+
+          <button pButton type="button" severity="secondary" text size="small" class="ml-auto" aria-label="Settings">
+            <svg data-p-icon="cog"></svg>
+          </button>
+        </div>
+        <div class="rounded-lg bg-surface-100 dark:bg-surface-800 flex-1">Bottom</div>
+      </div>
+    </p-sidebar-main>
+  </p-sidebar-layout>
+</div>
