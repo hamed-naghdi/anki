@@ -106,44 +106,7 @@
         <span class="text-sm font-medium flex-1">Dashboard</span>
       </header>
       <div class="flex-1 p-4 flex flex-col gap-4">
-        <div
-          class="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-3 flex flex-wrap items-center gap-3"
-        >
-          <p-iconfield class="flex-1 min-w-56 max-w-sm">
-            <p-inputicon>
-              <svg data-p-icon="search"></svg>
-            </p-inputicon>
-            <input
-              pInputText
-              type="text"
-              placeholder="Search a word…"
-              class="w-full"
-              [ngModel]="searchTerm()"
-              (ngModelChange)="searchTerm.set($event)"
-            />
-          </p-iconfield>
-
-          <p-select
-            [options]="decks"
-            [ngModel]="selectedDeck()"
-            (ngModelChange)="selectedDeck.set($event)"
-            placeholder="Deck"
-            class="w-48"
-          />
-
-          <p-select
-            [options]="noteTypes"
-            [ngModel]="selectedNoteType()"
-            (ngModelChange)="selectedNoteType.set($event)"
-            placeholder="Note type"
-            class="w-48"
-          />
-
-          <button pButton type="button" severity="secondary" text size="small" class="ml-auto" aria-label="Settings">
-            <svg data-p-icon="cog"></svg>
-          </button>
-        </div>
-        <div class="rounded-lg bg-surface-100 dark:bg-surface-800 flex-1">Bottom</div>
+        <router-outlet />
       </div>
     </p-sidebar-main>
   </p-sidebar-layout>

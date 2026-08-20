@@ -1,4 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 import { SidebarModule } from 'primeng/sidebar';
@@ -20,6 +21,7 @@ import { Sidebar } from '@primeicons/angular/sidebar';
 
 @Component({
   imports: [
+    RouterOutlet,
     FormsModule,
     SidebarModule,
     ButtonModule,
@@ -47,13 +49,6 @@ export class Layout implements OnInit {
   navOpen = signal(true);
   open = signal(false);
 
-  // Top toolbar: search box + deck/note-type pickers + settings. Mock options for now -
-  // backed by the real Anki deck/note-type list once that's wired to AnkiConnect.
-  searchTerm = signal('');
-  decks = ['Vocab::EN', 'Vocab::Academic', 'Vocab::Phrases'];
-  selectedDeck = signal(this.decks[0]);
-  noteTypes = ['Vocab + Ex', 'Basic'];
-  selectedNoteType = signal(this.noteTypes[0]);
   private mql?: MediaQueryList;
   private mqlListener?: (e: MediaQueryListEvent) => void;
   ngOnInit() {
