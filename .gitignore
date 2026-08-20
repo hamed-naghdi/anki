@@ -1,0 +1,9 @@
+dictionary-api/
+
+# .NET
+bin/
+obj/
+*.user
+
+# JetBrains Rider
+.idea/

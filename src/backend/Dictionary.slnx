@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Dictionary.Api.Tests/Dictionary.Api.Tests.csproj" />
+  <Project Path="Dictionary.Api/Dictionary.Api.csproj" />
+</Solution>
