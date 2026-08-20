@@ -29,10 +29,12 @@ public class OxfordHtmlParserTests
         Assert.Equal("c1", entry.KeywordLevel);
 
         var pronunciation = Assert.Single(entry.Pronunciations);
-        Assert.Contains("kjʊəriˈɒsəti", pronunciation.British);
-        Assert.Contains("kjʊriˈɑːsəti", pronunciation.American);
-        Assert.NotNull(pronunciation.BritishAudioUrl);
-        Assert.NotNull(pronunciation.AmericanAudioUrl);
+        var british = Assert.Single(pronunciation.British);
+        var american = Assert.Single(pronunciation.American);
+        Assert.Contains("kjʊəriˈɒsəti", british.Ipa);
+        Assert.Contains("kjʊriˈɑːsəti", american.Ipa);
+        Assert.NotNull(british.AudioUrl);
+        Assert.NotNull(american.AudioUrl);
 
         var firstSense = entry.Senses[0];
         Assert.Equal("c1", firstSense.CefrLevel);
@@ -96,7 +98,7 @@ public class OxfordHtmlParserTests
     }
 
     [Fact]
-    public void Parse_BigFixture_ExtractsWordForms()
+    public void Parse_BigFixture_ExtractsInflectionFormsWithoutPronunciationWhenRegular()
     {
         var html = LoadFixture("oxford-big.html");
 
@@ -105,8 +107,74 @@ public class OxfordHtmlParserTests
         Assert.Null(result.Error);
         var entry = result.Entries[0];
 
-        Assert.NotNull(entry.WordForms);
-        Assert.Contains("bigger", entry.WordForms);
-        Assert.Contains("biggest", entry.WordForms);
+        var comparative = Assert.Single(entry.InflectionForms, f => f.Label == "comparative" && f.Form == "bigger");
+        var superlative = Assert.Single(entry.InflectionForms, f => f.Label == "superlative" && f.Form == "biggest");
+
+        // Regular "-er"/"-est" pronunciation is predictable from spelling, so Oxford doesn't
+        // bother recording it separately here (unlike the irregular "good" -> better/best case).
+        Assert.Null(comparative.Pronunciation);
+        Assert.Null(superlative.Pronunciation);
+    }
+
+    [Fact]
+    public void Parse_WifeFixture_ExtractsPluralWithItsOwnPronunciationAndAudio()
+    {
+        var html = LoadFixture("oxford-wife.html");
+
+        var result = OxfordHtmlParser.Parse("wife", html);
+
+        Assert.Null(result.Error);
+        var entry = result.Entries[0];
+
+        var plural = Assert.Single(entry.InflectionForms, f => f.Label == "plural" && f.Form == "wives");
+        Assert.NotNull(plural.Pronunciation);
+        var british = Assert.Single(plural.Pronunciation!.British);
+        Assert.Equal("/waɪvz/", british.Ipa);
+        Assert.NotNull(british.AudioUrl);
+    }
+
+    [Fact]
+    public void Parse_PutFixture_ExtractsVerbFormsTableWithPerRowAudio()
+    {
+        var html = LoadFixture("oxford-put.html");
+
+        var result = OxfordHtmlParser.Parse("put", html);
+
+        Assert.Null(result.Error);
+        var verbEntry = Assert.Single(result.Entries, e => e.PartOfSpeech == "verb");
+
+        var thirdPerson = Assert.Single(verbEntry.InflectionForms, f => f.Label == "3rd person singular present");
+        Assert.Equal("puts", thirdPerson.Form);
+        Assert.NotNull(thirdPerson.Pronunciation);
+        Assert.NotNull(Assert.Single(thirdPerson.Pronunciation!.British).AudioUrl);
+
+        var presentParticiple = Assert.Single(verbEntry.InflectionForms, f => f.Label == "-ing form");
+        Assert.Equal("putting", presentParticiple.Form);
+
+        // "root" (bare infinitive - same as the headword) is deliberately not modeled as its own
+        // inflection form, and neither are the auxiliary-only neg/short/strong-form rows.
+        Assert.DoesNotContain(verbEntry.InflectionForms, f => f.Form == "put" && f.Label is null);
+        Assert.Equal(4, verbEntry.InflectionForms.Count);
+    }
+
+    [Fact]
+    public void Parse_ControversyFixture_ExtractsTwoDistinctBritishPronunciations()
+    {
+        var html = LoadFixture("oxford-controversy.html");
+
+        var result = OxfordHtmlParser.Parse("controversy", html);
+
+        Assert.Null(result.Error);
+        var entry = result.Entries[0];
+
+        var pronunciation = Assert.Single(entry.Pronunciations);
+        Assert.Equal(2, pronunciation.British.Count);
+        Assert.Equal("/ˈkɒntrəvɜːsi/", pronunciation.British[0].Ipa);
+        Assert.Equal("/kənˈtrɒvəsi/", pronunciation.British[1].Ipa);
+        Assert.NotNull(pronunciation.British[0].AudioUrl);
+        Assert.NotNull(pronunciation.British[1].AudioUrl);
+        Assert.NotEqual(pronunciation.British[0].AudioUrl, pronunciation.British[1].AudioUrl);
+
+        Assert.Single(pronunciation.American);
     }
 }

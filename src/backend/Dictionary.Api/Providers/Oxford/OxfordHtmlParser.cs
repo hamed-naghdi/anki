@@ -57,8 +57,8 @@ public static partial class OxfordHtmlParser
         return new OxfordDictionaryEntry
         {
             PartOfSpeech = ExtractText(webtop, ".pos"),
-            WordForms = ExtractInflections(entryElement),
             Pronunciations = ExtractPronunciations(webtop),
+            InflectionForms = ExtractInflectionForms(entryElement),
             IsKeyword = isKeyword,
             KeywordLevel = keywordLevel,
             AcademicWordLists = ExtractAcademicWordLists(webtop),
@@ -139,30 +139,46 @@ public static partial class OxfordHtmlParser
             return [];
         }
 
-        var britishBlock = webtop.QuerySelector(".phons_br");
-        var americanBlock = webtop.QuerySelector(".phons_n_am");
+        var british = ExtractAccentVariants(webtop.QuerySelector(".phons_br"));
+        var american = ExtractAccentVariants(webtop.QuerySelector(".phons_n_am"));
 
-        var british = ExtractText(britishBlock, ".phon");
-        var american = ExtractText(americanBlock, ".phon");
-
-        if (british is null && american is null)
+        if (british.Count == 0 && american.Count == 0)
         {
             return [];
         }
 
-        var britishAudio = britishBlock?.QuerySelector(".sound")?.GetAttribute("data-src-mp3");
-        var americanAudio = americanBlock?.QuerySelector(".sound")?.GetAttribute("data-src-mp3");
+        return [new Pronunciation { British = british, American = american }];
+    }
 
-        return
-        [
-            new Pronunciation
+    /// <summary>
+    /// One accent block (.phons_br or .phons_n_am) can hold more than one recorded variant, e.g.
+    /// "controversy" has two separate British pronunciations - each is a (.sound, .phon) pair,
+    /// in order, so zipping the two element lists by index recovers the pairing.
+    /// </summary>
+    private static List<PhoneticVariant> ExtractAccentVariants(IElement? accentBlock)
+    {
+        if (accentBlock is null)
+        {
+            return [];
+        }
+
+        var sounds = accentBlock.QuerySelectorAll(".sound").ToList();
+        var phons = accentBlock.QuerySelectorAll(".phon").ToList();
+
+        var variants = new List<PhoneticVariant>();
+        for (var i = 0; i < phons.Count; i++)
+        {
+            var ipa = phons[i].TextContent.Trim();
+            if (ipa.Length == 0)
             {
-                British = british,
-                BritishAudioUrl = NullIfEmpty(britishAudio) is { } br ? StripQueryString(br) : null,
-                American = american,
-                AmericanAudioUrl = NullIfEmpty(americanAudio) is { } am ? StripQueryString(am) : null,
-            },
-        ];
+                continue;
+            }
+
+            var audioUrl = i < sounds.Count ? NullIfEmpty(sounds[i].GetAttribute("data-src-mp3")) : null;
+            variants.Add(new PhoneticVariant { Ipa = ipa, AudioUrl = audioUrl is { } url ? StripQueryString(url) : null });
+        }
+
+        return variants;
     }
 
     /// <summary>
@@ -215,16 +231,124 @@ public static partial class OxfordHtmlParser
         return labels;
     }
 
-    private static string? ExtractInflections(IElement topGroup)
+    /// <summary>Nouns' plural and adjectives' comparative/superlative come from .inflections; verbs' principal parts come from the Verb Forms table - a word has at most one of the two.</summary>
+    private static List<InflectionForm> ExtractInflectionForms(IElement topGroup)
     {
-        var raw = ExtractText(topGroup, ".inflections");
-        if (raw is null)
+        var forms = new List<InflectionForm>();
+        forms.AddRange(ExtractSimpleInflections(topGroup));
+        forms.AddRange(ExtractVerbForms(topGroup));
+        return forms;
+    }
+
+    /// <summary>
+    /// .inflections holds a text label, an .inflected_form span (the word itself, render bold),
+    /// and an optional .phonetics sibling with its own BR/AM pronunciation - repeated per form,
+    /// e.g. "(comparative better /ˈbetə(r)/, superlative best /best/)".
+    /// </summary>
+    private static List<InflectionForm> ExtractSimpleInflections(IElement topGroup)
+    {
+        var container = topGroup.QuerySelector(".inflections");
+        if (container is null)
         {
-            return null;
+            return [];
         }
 
-        var text = SurroundingParensRegex().Replace(raw, "").Trim();
-        return string.IsNullOrEmpty(text) ? null : text;
+        var forms = new List<InflectionForm>();
+        string? pendingLabel = null;
+
+        foreach (var node in container.ChildNodes)
+        {
+            if (node is IText text)
+            {
+                var cleaned = text.Data.Trim(' ', '(', ')', ',');
+                if (cleaned.Length > 0)
+                {
+                    pendingLabel = cleaned;
+                }
+
+                continue;
+            }
+
+            if (node is not IElement element)
+            {
+                continue;
+            }
+
+            if (element.ClassList.Contains("inflected_form"))
+            {
+                forms.Add(new InflectionForm { Label = pendingLabel, Form = element.TextContent.Trim() });
+                pendingLabel = null;
+            }
+            else if (element.ClassList.Contains("phonetics") && forms.Count > 0)
+            {
+                var british = ExtractAccentVariants(element.QuerySelector(".phons_br"));
+                var american = ExtractAccentVariants(element.QuerySelector(".phons_n_am"));
+                if (british.Count > 0 || american.Count > 0)
+                {
+                    var last = forms[^1];
+                    forms[^1] = new InflectionForm
+                    {
+                        Label = last.Label,
+                        Form = last.Form,
+                        Pronunciation = new Pronunciation { British = british, American = american },
+                    };
+                }
+            }
+        }
+
+        return forms;
+    }
+
+    private static readonly Dictionary<string, string> VerbFormLabels = new()
+    {
+        ["thirdps"] = "3rd person singular present",
+        ["past"] = "past tense",
+        ["pastpart"] = "past participle",
+        ["prespart"] = "-ing form",
+    };
+
+    /// <summary>
+    /// Verbs list their principal parts in a "Verb Forms" table instead of .inflections, one row
+    /// per part, each with its own full BR/AM pronunciation. "root" (bare infinitive - already the
+    /// headword) and the auxiliary-only "neg"/"short"/"strong form" rows (seen only on "be") are
+    /// deliberately not modeled here.
+    /// </summary>
+    private static List<InflectionForm> ExtractVerbForms(IElement topGroup)
+    {
+        var table = topGroup.QuerySelector(".verb_forms_table");
+        if (table is null)
+        {
+            return [];
+        }
+
+        var forms = new List<InflectionForm>();
+
+        foreach (var row in table.QuerySelectorAll("tr.verb_form"))
+        {
+            var formType = row.GetAttribute("form");
+            if (formType is null || !VerbFormLabels.TryGetValue(formType, out var label))
+            {
+                continue;
+            }
+
+            var formCell = row.QuerySelector("td.verb_form");
+            var form = formCell is null ? "" : ExtractTextExcluding(formCell, ".vf_prefix").Trim();
+            if (form.Length == 0)
+            {
+                continue;
+            }
+
+            var phonsCell = row.QuerySelector("td.verb_phons");
+            var british = ExtractAccentVariants(phonsCell?.QuerySelector(".phons_br"));
+            var american = ExtractAccentVariants(phonsCell?.QuerySelector(".phons_n_am"));
+            var pronunciation = british.Count > 0 || american.Count > 0
+                ? new Pronunciation { British = british, American = american }
+                : null;
+
+            forms.Add(new InflectionForm { Label = label, Form = form, Pronunciation = pronunciation });
+        }
+
+        return forms;
     }
 
     private static string? ExtractGrammar(IElement senseElement) =>
@@ -243,9 +367,6 @@ public static partial class OxfordHtmlParser
         var cleaned = raw.Trim('(', ')').Trim();
         return string.IsNullOrEmpty(cleaned) ? null : cleaned;
     }
-
-    [GeneratedRegex(@"^\(+|\)+$")]
-    private static partial Regex SurroundingParensRegex();
 
     [GeneratedRegex(@"^ox[35]ksym_([a-c][12])$")]
     private static partial Regex KeywordSymbolRegex();

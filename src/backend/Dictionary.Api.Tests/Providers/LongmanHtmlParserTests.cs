@@ -29,10 +29,12 @@ public class LongmanHtmlParserTests
 
         var pronunciation = Assert.Single(entry.Pronunciations);
         Assert.Null(pronunciation.Label);
-        Assert.False(string.IsNullOrWhiteSpace(pronunciation.British));
-        Assert.False(string.IsNullOrWhiteSpace(pronunciation.American));
-        Assert.NotNull(pronunciation.BritishAudioUrl);
-        Assert.NotNull(pronunciation.AmericanAudioUrl);
+        var british = Assert.Single(pronunciation.British);
+        var american = Assert.Single(pronunciation.American);
+        Assert.False(string.IsNullOrWhiteSpace(british.Ipa));
+        Assert.False(string.IsNullOrWhiteSpace(american.Ipa));
+        Assert.NotNull(british.AudioUrl);
+        Assert.NotNull(american.AudioUrl);
 
         Assert.NotEmpty(entry.Senses);
         var firstSense = entry.Senses[0];
@@ -94,7 +96,7 @@ public class LongmanHtmlParserTests
     }
 
     [Fact]
-    public void Parse_BigFixture_ExtractsWordForms()
+    public void Parse_BigFixture_ExtractsInflectionForms()
     {
         var html = LoadFixture("longman-big.html");
 
@@ -103,10 +105,8 @@ public class LongmanHtmlParserTests
         Assert.Null(result.Error);
         var entry = result.Entries[0];
 
-        Assert.NotNull(entry.WordForms);
-        Assert.Contains("bigger", entry.WordForms);
-        Assert.Contains("biggest", entry.WordForms);
-        Assert.DoesNotContain("<strong>", entry.WordForms);
+        Assert.Contains(entry.InflectionForms, f => f.Label == "comparative" && f.Form == "bigger");
+        Assert.Contains(entry.InflectionForms, f => f.Label == "superlative" && f.Form == "biggest");
     }
 
     [Fact]
@@ -120,7 +120,9 @@ public class LongmanHtmlParserTests
         var entry = result.Entries[0];
 
         var pronunciation = Assert.Single(entry.Pronunciations);
-        Assert.NotEqual(pronunciation.British, pronunciation.American);
+        var british = Assert.Single(pronunciation.British).Ipa;
+        var american = Assert.Single(pronunciation.American).Ipa;
+        Assert.NotEqual(british, american);
 
         Assert.Contains(entry.FrequencyLabels, label => label.Code == "●●○" && label.Description == "Core vocabulary: Medium-frequency");
 
@@ -150,7 +152,7 @@ public class LongmanHtmlParserTests
     }
 
     [Fact]
-    public void Parse_ReadFixture_ReturnsDistinctPronunciationForPastTense()
+    public void Parse_ReadFixture_ReturnsDistinctPronunciationForPastTenseInflectionForm()
     {
         var html = LoadFixture("longman-read.html");
 
@@ -159,15 +161,54 @@ public class LongmanHtmlParserTests
         Assert.Null(result.Error);
         var verbEntry = Assert.Single(result.Entries, entry => entry.PartOfSpeech == "verb");
 
-        Assert.Equal(2, verbEntry.Pronunciations.Count);
-
-        var baseForm = verbEntry.Pronunciations[0];
+        var baseForm = Assert.Single(verbEntry.Pronunciations);
         Assert.Null(baseForm.Label);
-        Assert.Equal("riːd", baseForm.British);
+        Assert.Equal("riːd", Assert.Single(baseForm.British).Ipa);
 
-        var pastTense = verbEntry.Pronunciations[1];
-        Assert.Equal("past tense and past participle", pastTense.Label);
-        Assert.Equal("red", pastTense.British);
-        Assert.NotEqual(baseForm.British, pastTense.British);
+        var pastTense = Assert.Single(
+            verbEntry.InflectionForms,
+            f => f.Label == "past tense and past participle" && f.Form == "read");
+        Assert.NotNull(pastTense.Pronunciation);
+        Assert.Equal("red", Assert.Single(pastTense.Pronunciation!.British).Ipa);
+        Assert.NotEqual(baseForm.British[0].Ipa, pastTense.Pronunciation.British[0].Ipa);
+    }
+
+    [Fact]
+    public void Parse_PutFixture_ExtractsMultipleInflectionFormsWithoutPronunciationWhenRegular()
+    {
+        var html = LoadFixture("longman-put.html");
+
+        var result = LongmanHtmlParser.Parse("put", html);
+
+        Assert.Null(result.Error);
+        // Longman's "put" page has more than one verb homograph, sharing identical inflections.
+        var verbEntry = result.Entries.First(entry => entry.PartOfSpeech == "verb");
+
+        var pastTenseAndParticiple = Assert.Single(
+            verbEntry.InflectionForms,
+            f => f.Label == "past tense and past participle" && f.Form == "put");
+        var presentParticiple = Assert.Single(
+            verbEntry.InflectionForms,
+            f => f.Label == "present participle" && f.Form == "putting");
+
+        // "put"/"put" share the base form's pronunciation exactly and "putting" is a regular
+        // -ing formation, so Longman doesn't bother giving either of them their own phonetics.
+        Assert.Null(pastTenseAndParticiple.Pronunciation);
+        Assert.Null(presentParticiple.Pronunciation);
+    }
+
+    [Fact]
+    public void Parse_WifeFixture_ExtractsPluralWithItsOwnPronunciation()
+    {
+        var html = LoadFixture("longman-wife.html");
+
+        var result = LongmanHtmlParser.Parse("wife", html);
+
+        Assert.Null(result.Error);
+        var entry = result.Entries[0];
+
+        var plural = Assert.Single(entry.InflectionForms, f => f.Label == "plural" && f.Form == "wives");
+        Assert.NotNull(plural.Pronunciation);
+        Assert.Equal("waɪvz", Assert.Single(plural.Pronunciation!.British).Ipa);
     }
 }

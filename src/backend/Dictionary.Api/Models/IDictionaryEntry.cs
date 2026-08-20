@@ -9,8 +9,8 @@ namespace Dictionary.Api.Models;
 public interface IDictionaryEntry
 {
     string? PartOfSpeech { get; }
-    string? WordForms { get; }
     string? Grammar { get; }
     IReadOnlyList<Pronunciation> Pronunciations { get; }
+    IReadOnlyList<InflectionForm> InflectionForms { get; }
     IReadOnlyList<ISense> Senses { get; }
 }

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using Dictionary.Api.Models;
@@ -11,7 +10,7 @@ namespace Dictionary.Api.Providers.Longman;
 /// Parses a Longman Learner's Dictionary entry page (ldoceonline.com) into Longman's own model
 /// types. Pure HTML-in, model-out - no HTTP - so it can be tested against saved fixtures.
 /// </summary>
-public static partial class LongmanHtmlParser
+public static class LongmanHtmlParser
 {
     public const string SourceName = "Longman";
 
@@ -55,9 +54,9 @@ public static partial class LongmanHtmlParser
         {
             PartOfSpeech = ExtractText(headElement, ".POS"),
             Hyphenation = ExtractHyphenation(headElement),
-            WordForms = ExtractWordForms(headElement),
             Grammar = ExtractGrammar(headElement),
             Pronunciations = ExtractPronunciations(headElement),
+            InflectionForms = ExtractInflectionForms(headElement),
             FrequencyLabels = ExtractFrequencyLabels(headElement),
             Senses = senses,
         };
@@ -154,68 +153,113 @@ public static partial class LongmanHtmlParser
         return new LongmanExample { Segments = segments, AudioUrl = audio, Note = combinedNote, Pattern = pattern };
     }
 
+    /// <summary>The headword's own pronunciation only - inflected forms' pronunciations live on their own InflectionForm instead.</summary>
     private static List<Pronunciation> ExtractPronunciations(IElement? headElement)
     {
-        if (headElement is null)
+        var primaryPronCodes = headElement?.Children.FirstOrDefault(c => c.ClassList.Contains("PronCodes"));
+        if (primaryPronCodes is null)
         {
             return [];
         }
 
-        var pronunciations = new List<Pronunciation>();
-
-        var primaryPronCodes = headElement.Children.FirstOrDefault(c => c.ClassList.Contains("PronCodes"));
-        if (primaryPronCodes is not null)
-        {
-            var britishAudio = ExtractSpeakerAudio(headElement, "brefile");
-            var americanAudio = ExtractSpeakerAudio(headElement, "amefile");
-            var pronunciation = BuildPronunciation(primaryPronCodes, label: null, britishAudio, americanAudio);
-            if (pronunciation is not null)
-            {
-                pronunciations.Add(pronunciation);
-            }
-        }
-
-        // Some inflected forms (e.g. a verb's past tense) are pronounced differently from the
-        // base form and carry their own nested .PronCodes inside .Inflections.
-        var inflections = headElement.Children.FirstOrDefault(c => c.ClassList.Contains("Inflections"));
-        if (inflections is not null)
-        {
-            foreach (var pronCodes in inflections.QuerySelectorAll(".PronCodes"))
-            {
-                var label = pronCodes.PreviousElementSibling is { } labelHost
-                    ? ExtractText(labelHost, ".infllab")
-                    : null;
-                var pronunciation = BuildPronunciation(pronCodes, label, britishAudioUrl: null, americanAudioUrl: null);
-                if (pronunciation is not null)
-                {
-                    pronunciations.Add(pronunciation);
-                }
-            }
-        }
-
-        return pronunciations;
+        var britishAudio = ExtractSpeakerAudio(headElement!, "brefile");
+        var americanAudio = ExtractSpeakerAudio(headElement!, "amefile");
+        var pronunciation = BuildPronunciation(primaryPronCodes, label: null, britishAudio, americanAudio);
+        return pronunciation is null ? [] : [pronunciation];
     }
 
+    /// <summary>
+    /// Longman can list more than one accepted pronunciation for the same accent in one .PRON/
+    /// .AMEVARPRON span (e.g. "often" /ˈɒfən, ˈɒftən/), comma-separated, but only ever records one
+    /// audio file per accent - so that audio attaches to the first variant only.
+    /// </summary>
     private static Pronunciation? BuildPronunciation(
         IElement pronCodes, string? label, string? britishAudioUrl, string? americanAudioUrl)
     {
-        var british = ExtractText(pronCodes, ".PRON");
+        var britishText = ExtractText(pronCodes, ".PRON");
         var amevarElement = pronCodes.QuerySelector(".AMEVARPRON");
-        var american = amevarElement is null ? british : ExtractTextExcluding(amevarElement, ".neutral");
+        var americanText = amevarElement is null ? britishText : ExtractTextExcluding(amevarElement, ".neutral");
 
-        if (british is null && american is null)
+        var british = SplitVariants(britishText, britishAudioUrl);
+        var american = SplitVariants(americanText, americanAudioUrl);
+
+        if (british.Count == 0 && american.Count == 0)
         {
             return null;
         }
 
-        return new Pronunciation
+        return new Pronunciation { Label = label, British = british, American = american };
+    }
+
+    private static List<PhoneticVariant> SplitVariants(string? text, string? audioUrl)
+    {
+        if (string.IsNullOrEmpty(text))
         {
-            Label = label,
-            British = british,
-            BritishAudioUrl = britishAudioUrl,
-            American = american,
-            AmericanAudioUrl = americanAudioUrl,
-        };
+            return [];
+        }
+
+        var variants = new List<PhoneticVariant>();
+        var parts = text.Split(',');
+        foreach (var part in parts)
+        {
+            var ipa = part.Trim();
+            if (ipa.Length > 0)
+            {
+                variants.Add(new PhoneticVariant { Ipa = ipa, AudioUrl = variants.Count == 0 ? audioUrl : null });
+            }
+        }
+
+        return variants;
+    }
+
+    /// <summary>
+    /// Walks .Inflections structurally rather than by a hardcoded list of grammatical-role class
+    /// names (PTandPP, PRESPART, PLURALFORM, COMP, SUPERL, PASTTENSE, PASTPART, ...) - any direct
+    /// child that isn't decorative punctuation (.neutral) or a person/number label (.LINKWORD,
+    /// deferred - see "be") is one inflection entry; a following .PronCodes sibling attaches as
+    /// that entry's pronunciation, present only when Longman considers it non-obvious from spelling.
+    /// </summary>
+    private static List<InflectionForm> ExtractInflectionForms(IElement? headElement)
+    {
+        var inflections = headElement?.Children.FirstOrDefault(c => c.ClassList.Contains("Inflections"));
+        if (inflections is null)
+        {
+            return [];
+        }
+
+        var forms = new List<InflectionForm>();
+
+        foreach (var child in inflections.Children)
+        {
+            if (child.ClassList.Contains("neutral") || child.ClassList.Contains("LINKWORD"))
+            {
+                continue;
+            }
+
+            if (child.ClassList.Contains("PronCodes"))
+            {
+                if (forms.Count > 0)
+                {
+                    var pronunciation = BuildPronunciation(child, label: null, britishAudioUrl: null, americanAudioUrl: null);
+                    if (pronunciation is not null)
+                    {
+                        var last = forms[^1];
+                        forms[^1] = new InflectionForm { Label = last.Label, Form = last.Form, Pronunciation = pronunciation };
+                    }
+                }
+
+                continue;
+            }
+
+            var label = NullIfEmpty((ExtractText(child, ".infllab") ?? ExtractText(child, ".italic"))?.Trim());
+            var form = ExtractTextExcluding(child, ".infllab, .italic, .neutral").Trim();
+            if (form.Length > 0)
+            {
+                forms.Add(new InflectionForm { Label = label, Form = form });
+            }
+        }
+
+        return forms;
     }
 
     /// <summary>
@@ -263,18 +307,6 @@ public static partial class LongmanHtmlParser
         return ExtractText(headElement, ".HYPHENATION") ?? ExtractText(headElement, ".PHRVBHWD");
     }
 
-    private static string? ExtractWordForms(IElement? headElement)
-    {
-        var raw = ExtractText(headElement, ".Inflections");
-        if (raw is null)
-        {
-            return null;
-        }
-
-        var text = SurroundingParensRegex().Replace(raw, "").Trim();
-        return string.IsNullOrEmpty(text) ? null : text;
-    }
-
     private static string? ExtractGrammar(IElement? scope)
     {
         var raw = ExtractText(scope, ".GRAM");
@@ -309,7 +341,4 @@ public static partial class LongmanHtmlParser
         var src = scope.QuerySelector(selector)?.GetAttribute("data-src-mp3");
         return string.IsNullOrEmpty(src) ? null : StripQueryString(src);
     }
-
-    [GeneratedRegex(@"^\(+|\)+$")]
-    private static partial Regex SurroundingParensRegex();
 }
