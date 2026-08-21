@@ -1,9 +1,6 @@
 import { Signal, computed, effect, signal } from '@angular/core';
 import { httpResource } from '@angular/common/http';
-
-interface ListResponse {
-  error: string | null;
-}
+import { AnkiConnectResponse, ankiConnectRequest } from './anki-connect';
 
 export interface PersistedListResource {
   readonly items: Signal<string[]>;
@@ -15,27 +12,21 @@ export interface PersistedListResource {
 }
 
 /**
- * Shared behaviour behind DeckService/NoteTypeService: fetch a string list from the backend via
- * httpResource, and track a "current" selection persisted in localStorage - falling back to the
- * first item once loaded, and recovering gracefully if the persisted value no longer exists in
- * the list (e.g. a deck was renamed/deleted in Anki since).
+ * Shared behaviour behind DeckService/NoteTypeService: fetch a string list directly from
+ * AnkiConnect via httpResource, and track a "current" selection persisted in localStorage -
+ * falling back to the first item once loaded, and recovering gracefully if the persisted value no
+ * longer exists in the list (e.g. a deck was renamed/deleted in Anki since).
  *
  * Must be called synchronously from an injection context (e.g. a service constructor/field
  * initializer), since both httpResource and effect() require one.
  */
-export function createPersistedListResource<TResponse extends ListResponse>(
-  endpoint: string,
-  storageKey: string,
-  extractItems: (response: TResponse) => string[],
-): PersistedListResource {
-  const resource = httpResource<TResponse>(() => endpoint);
+export function createPersistedListResource(action: string, storageKey: string): PersistedListResource {
+  const resource = httpResource<AnkiConnectResponse<string[]>>(() => ankiConnectRequest(action));
 
-  const items = computed(() => {
-    const value = resource.value();
-    return value ? extractItems(value) : [];
-  });
+  const items = computed(() => resource.value()?.result ?? []);
 
-  // A transport-level failure (network/parse) takes priority; otherwise surface the backend's own error message.
+  // A transport-level failure (network/parse - e.g. Anki isn't running) takes priority; otherwise
+  // surface AnkiConnect's own error message.
   const error = computed(() => resource.error()?.message ?? resource.value()?.error ?? null);
 
   const storedValue = typeof localStorage === 'undefined' ? null : localStorage.getItem(storageKey);
@@ -48,7 +39,7 @@ export function createPersistedListResource<TResponse extends ListResponse>(
       return explicit;
     }
     // Keep showing the persisted choice while the list is still loading; once loaded, a
-    // selection that no longer exists falls back to whatever the backend reports first.
+    // selection that no longer exists falls back to whatever AnkiConnect reports first.
     return list[0] ?? explicit ?? null;
   });
 

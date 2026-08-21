@@ -1,20 +1,10 @@
 import { Injectable } from '@angular/core';
 import { createPersistedListResource } from './persisted-list-resource';
 
-/** Shape of GET /api/anki/note-types - mirrors the backend's NoteTypeListResult. */
-export interface NoteTypeListResponse {
-  noteTypes: string[];
-  error: string | null;
-}
-
-/** Note types (Anki "models") live in Anki, not in this app - fetched through the backend. */
+/** Note types ("models") live in Anki - fetched directly from AnkiConnect (action "modelNames"). */
 @Injectable({ providedIn: 'root' })
 export class NoteTypeService {
-  private readonly resource = createPersistedListResource<NoteTypeListResponse>(
-    '/api/anki/note-types',
-    'anki.selectedNoteType',
-    (response) => response.noteTypes,
-  );
+  private readonly resource = createPersistedListResource('modelNames', 'anki.selectedNoteType');
 
   readonly noteTypes = this.resource.items;
   readonly isLoading = this.resource.isLoading;

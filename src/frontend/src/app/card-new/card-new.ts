@@ -5,6 +5,7 @@ import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Select } from 'primeng/select';
+import { TreeSelect } from 'primeng/treeselect';
 import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
 import { DeckService } from '../core/deck.service';
@@ -18,6 +19,7 @@ import { NoteTypeService } from '../core/note-type.service';
     InputText,
     ReactiveFormsModule,
     Select,
+    TreeSelect,
     FormsModule,
     Search,
     Times,
@@ -27,7 +29,7 @@ import { NoteTypeService } from '../core/note-type.service';
   templateUrl: './card-new.html',
 })
 export class CardNew {
-  // Decks and note types come from Anki itself (via the backend, which talks to AnkiConnect).
+  // Decks and note types come directly from Anki via AnkiConnect (no backend involvement).
   protected readonly deckService = inject(DeckService);
   protected readonly noteTypeService = inject(NoteTypeService);
 
