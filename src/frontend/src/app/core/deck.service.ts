@@ -45,7 +45,8 @@ function buildDeckTree(names: string[]): TreeNode[] {
       path = path ? `${path}::${part}` : part;
       let node = byPath.get(path);
       if (!node) {
-        node = { key: path, label: part, data: path, children: [] };
+        // Expanded by default (p-treetable reads each node's own `expanded` flag).
+        node = { key: path, label: part, data: path, children: [], expanded: true };
         byPath.set(path, node);
         siblings.push(node);
       }

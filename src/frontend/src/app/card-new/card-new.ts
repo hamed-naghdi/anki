@@ -1,5 +1,4 @@
 import { Component, inject, signal } from '@angular/core';
-import { ButtonDirective } from 'primeng/button';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
@@ -13,7 +12,6 @@ import { NoteTypeService } from '../core/note-type.service';
 
 @Component({
   imports: [
-    ButtonDirective,
     IconField,
     InputIcon,
     InputText,

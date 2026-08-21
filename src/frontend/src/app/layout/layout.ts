@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 import { SidebarModule } from 'primeng/sidebar';
@@ -22,6 +22,8 @@ import { Sidebar } from '@primeicons/angular/sidebar';
 @Component({
   imports: [
     RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
     FormsModule,
     SidebarModule,
     ButtonModule,

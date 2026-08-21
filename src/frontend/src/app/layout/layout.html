@@ -11,7 +11,7 @@
             <p-sidebar-menu>
               <p-sidebar-menu-item>
                 <button pSidebarMenuButton class="p-1!">
-                  <div class="flex size-16 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-violet-500 to-indigo-600 text-white text-s font-bold leading-none">Anki UI</div>
+                  <div class="flex size-8 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-violet-500 to-indigo-600 text-white text-s font-bold leading-none">Anki</div>
                   <span class="font-semibold text-sm">Dictionary</span>
                 </button>
               </p-sidebar-menu-item>
@@ -23,9 +23,16 @@
               <p-sidebar-group-content>
                 <p-sidebar-menu>
                   <p-sidebar-menu-item>
-                    <button pSidebarMenuButton [isActive]="true">
+                    <button
+                      pSidebarMenuButton
+                      routerLink="/"
+                      routerLinkActive
+                      #decksLink="routerLinkActive"
+                      [routerLinkActiveOptions]="{ exact: true }"
+                      [isActive]="decksLink.isActive"
+                    >
                       <svg data-p-icon="home"></svg>
-                      <span>Home</span>
+                      <span>Decks</span>
                     </button>
                   </p-sidebar-menu-item>
                   <p-sidebar-menu-item>
