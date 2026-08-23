@@ -45,13 +45,14 @@ export class CardNew {
   searchTerm = signal('');
   protected readonly selectedSources = signal<string[]>(DICTIONARY_SOURCES.map((source) => source.key));
 
-  // Separate from searchTerm so results only refresh on Enter, not on every keystroke - selected
-  // sources still narrow/widen an already-submitted search live, since that's just a result filter.
+  // Separate from searchTerm/selectedSources so a query only fires on Enter - toggling sources in
+  // the dropdown must not by itself trigger a new backend request.
   protected readonly submittedTerm = signal('');
+  protected readonly submittedSources = signal<string[]>([]);
 
   protected readonly searchResource = httpResource<DictionarySearchResult>(() => {
     const word = this.submittedTerm();
-    const sources = this.selectedSources();
+    const sources = this.submittedSources();
     return word && sources.length ? dictionaryLookupRequest(word, sources) : undefined;
   });
 
@@ -83,10 +84,12 @@ export class CardNew {
 
   protected onSearch(): void {
     this.submittedTerm.set(this.searchTerm().trim());
+    this.submittedSources.set(this.selectedSources());
   }
 
   protected onClearSearch(): void {
     this.searchTerm.set('');
     this.submittedTerm.set('');
+    this.submittedSources.set([]);
   }
 }
