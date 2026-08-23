@@ -148,7 +148,19 @@
                 <p-accordion-panel [value]="source">
                   <p-accordion-header>{{ source }}</p-accordion-header>
                   <p-accordion-content>
-                    <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">result of {{ source }} is available</p>
+                    <p-tree
+                      [value]="treeNodesFor(source)"
+                      selectionMode="checkbox"
+                      [selection]="selectionFor(side)"
+                      (selectionChange)="setSelection(side, $any($event))"
+                    >
+                      <ng-template #node let-node>
+                        <span class="font-semibold text-[#2b2621] dark:text-[#e8e2d9]">{{ submittedTerm() }}</span>
+                        @if (node.data?.partOfSpeech) {
+                          <span class="ml-1.5 text-xs font-normal text-[#6b6156] dark:text-[#a89e91]">{{ node.data.partOfSpeech }}</span>
+                        }
+                      </ng-template>
+                    </p-tree>
                   </p-accordion-content>
                 </p-accordion-panel>
               }

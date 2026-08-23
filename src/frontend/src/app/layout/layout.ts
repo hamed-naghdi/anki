@@ -12,10 +12,6 @@ import { Home } from '@primeicons/angular/home';
 import { Inbox } from '@primeicons/angular/inbox';
 import { Search } from '@primeicons/angular/search';
 import { Bell } from '@primeicons/angular/bell';
-import { ChartBar } from '@primeicons/angular/chart-bar';
-import { ChevronDown } from '@primeicons/angular/chevron-down';
-import { Users } from '@primeicons/angular/users';
-import { Calendar } from '@primeicons/angular/calendar';
 import { Cog } from '@primeicons/angular/cog';
 import { Sidebar } from '@primeicons/angular/sidebar';
 
@@ -35,10 +31,6 @@ import { Sidebar } from '@primeicons/angular/sidebar';
     Inbox,
     Search,
     Bell,
-    ChartBar,
-    ChevronDown,
-    Users,
-    Calendar,
     Cog,
     Sidebar,
   ],

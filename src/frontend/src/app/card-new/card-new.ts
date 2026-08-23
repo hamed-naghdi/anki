@@ -10,7 +10,9 @@ import { InputText } from 'primeng/inputtext';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Select } from 'primeng/select';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
+import { Tree } from 'primeng/tree';
 import { TreeSelect } from 'primeng/treeselect';
+import type { TreeNode } from 'primeng/api';
 import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
 import { DeckService } from '../core/deck.service';
@@ -46,6 +48,7 @@ type CardSide = 'front' | 'back';
     TabPanel,
     TabPanels,
     Tabs,
+    Tree,
     TreeSelect,
     FormsModule,
     Search,
@@ -137,6 +140,55 @@ export class CardNew {
     this.expandedResultSourcesBySide[side].set(
       Array.isArray(value) ? value.map(String) : value === null || value === undefined ? [] : [String(value)],
     );
+  }
+
+  // One tree node per entry a dictionary returned (e.g. "free" has several homograph entries in
+  // Longman) - the headword and its part of speech are all a node carries for now; the fields
+  // within an entry will become its children once field-level checkboxes exist. `data` carries the
+  // entry itself so the node template can style the word and part of speech differently.
+  private readonly treeNodesBySource = computed(() => {
+    const word = this.submittedTerm();
+    const nodesBySource = new Map<string, TreeNode[]>();
+
+    for (const result of this.sourceResults()) {
+      nodesBySource.set(
+        result.source,
+        result.entries.map((entry, index) => ({
+          key: `${result.source}-${index}`,
+          label: entry.partOfSpeech ? `${word} (${entry.partOfSpeech})` : word,
+          data: entry,
+        })),
+      );
+    }
+
+    return nodesBySource;
+  });
+
+  protected treeNodesFor(source: string): TreeNode[] {
+    return this.treeNodesBySource().get(source) ?? [];
+  }
+
+  // Which entries are checked in each dictionary's tree, tracked per side (front/back never share
+  // a checkbox state) and reset to "nothing checked" whenever a new search replaces the results.
+  // Uses the older `selection` (node-array) model rather than v22's new `selectionKeys` map, which
+  // didn't respond to clicks at all in practice.
+  private readonly selectionBySide: Record<CardSide, WritableSignal<TreeNode[]>> = {
+    front: linkedSignal(() => {
+      this.resultSources();
+      return [];
+    }),
+    back: linkedSignal(() => {
+      this.resultSources();
+      return [];
+    }),
+  };
+
+  protected selectionFor(side: CardSide): TreeNode[] {
+    return this.selectionBySide[side]();
+  }
+
+  protected setSelection(side: CardSide, selection: TreeNode[] | null | undefined): void {
+    this.selectionBySide[side].set(selection ?? []);
   }
 
   protected onSearch(): void {
