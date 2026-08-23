@@ -15,5 +15,18 @@ public sealed class LongmanDictionaryEntry : IDictionaryEntry
 
     public required IReadOnlyList<LongmanSense> Senses { get; init; }
 
+    /// <summary>Word origin/history, e.g. "Old English: brecan". Null when Longman doesn't print one for this homograph.</summary>
+    public string? Etymology { get; init; }
+
+    /// <summary>Idioms cross-referenced from this entry - Longman only links to their own page, so these carry no embedded definition (see <see cref="LongmanIdiom"/>).</summary>
+    public required IReadOnlyList<LongmanIdiom> Idioms { get; init; }
+
+    /// <summary>The page's "Word family" box - shared across every homograph on this page, not specific to this entry's own part of speech.</summary>
+    public required IReadOnlyList<WordFamilyMember> WordFamily { get; init; }
+
+    public required IReadOnlyList<LongmanCollocationGroup> CollocationGroups { get; init; }
+    public required IReadOnlyList<ThesaurusSection> ThesaurusSections { get; init; }
+
     IReadOnlyList<ISense> IDictionaryEntry.Senses => Senses;
+    IReadOnlyList<IIdiom> IDictionaryEntry.Idioms => Idioms;
 }

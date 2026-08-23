@@ -29,26 +29,25 @@ public static class LongmanHtmlParser
             };
         }
 
+        var wordFamily = ExtractWordFamily(document);
+        var etymologyByHomnum = ExtractEtymologyByHomnum(document);
+
         var entries = document
             .QuerySelectorAll(".entry_content .dictionary .dictentry")
             .Select(dictEntry => dictEntry.QuerySelector(".dictlink .Entry"))
             .Where(ldEntry => ldEntry is not null)
-            .Select(ldEntry => ExtractEntry(ldEntry!))
+            .Select(ldEntry => ExtractEntry(ldEntry!, wordFamily, etymologyByHomnum))
             .ToList();
 
         return new DictionaryLookupResult<LongmanDictionaryEntry> { Word = word, Source = SourceName, Entries = entries };
     }
 
-    private static LongmanDictionaryEntry ExtractEntry(IElement ldEntry)
+    private static LongmanDictionaryEntry ExtractEntry(
+        IElement ldEntry, IReadOnlyList<WordFamilyMember> wordFamily, IReadOnlyDictionary<string, string> etymologyByHomnum)
     {
         var headElement = ldEntry.QuerySelector(".Head");
-
-        var senses = ldEntry.Children
-            .Where(child => child.ClassList.Contains("Sense"))
-            .Select(ExtractSense)
-            .Where(sense => sense is not null)
-            .Select(sense => sense!)
-            .ToList();
+        var headword = ExtractText(headElement, ".HWD") ?? "";
+        var homnum = ExtractText(headElement, ".HOMNUM") ?? "";
 
         return new LongmanDictionaryEntry
         {
@@ -58,22 +57,74 @@ public static class LongmanHtmlParser
             Pronunciations = ExtractPronunciations(headElement),
             InflectionForms = ExtractInflectionForms(headElement),
             FrequencyLabels = ExtractFrequencyLabels(headElement),
-            Senses = senses,
+            Senses = ExtractSenses(ldEntry, headword).ToList(),
+            Etymology = etymologyByHomnum.GetValueOrDefault(homnum),
+            Idioms = ExtractIdioms(ldEntry),
+            WordFamily = wordFamily,
+            CollocationGroups = ExtractCollocationGroups(ldEntry),
+            ThesaurusSections = ExtractThesaurusSections(ldEntry),
         };
     }
 
-    private static LongmanSense? ExtractSense(IElement senseElement)
+    /// <summary>
+    /// A numbered .Sense either carries its definition directly, or - when Longman splits it into
+    /// lettered .Subsense children (e.g. "break" sense 1 -> "1a", "1b") - carries none of its own
+    /// and all real content lives one level down. Each subsense is flattened into its own
+    /// LongmanSense here (labeled "1a"/"1b") rather than nested, so none of them are silently
+    /// dropped the way only the first one used to be when .DEF/.EXAMPLE were read straight off the
+    /// parent via descendant selectors.
+    /// </summary>
+    private static IEnumerable<LongmanSense> ExtractSenses(IElement ldEntry, string headword)
     {
-        var examples = ExtractExamples(senseElement);
+        foreach (var senseElement in ldEntry.Children.Where(child => child.ClassList.Contains("Sense")))
+        {
+            var senseNumber = DirectChildText(senseElement, "sensenum");
+            var guideword = NullIfHeadword(DirectChildText(senseElement, "ACTIV"), headword);
+            var signpost = DirectChildText(senseElement, "SIGNPOST");
+            var field = DirectChildText(senseElement, "FIELD");
 
+            var subsenses = senseElement.Children.Where(child => child.ClassList.Contains("Subsense")).ToList();
+
+            if (subsenses.Count == 0)
+            {
+                var sense = BuildSense(senseElement, senseNumber, guideword, signpost, field);
+                if (sense is not null)
+                {
+                    yield return sense;
+                }
+
+                continue;
+            }
+
+            foreach (var subsense in subsenses)
+            {
+                var letter = DirectChildText(subsense, "sensenum")?.TrimEnd(')');
+                var label = senseNumber is null ? letter : $"{senseNumber}{letter}";
+                var subField = DirectChildText(subsense, "FIELD") ?? field;
+
+                var sense = BuildSense(subsense, label, guideword, signpost, subField);
+                if (sense is not null)
+                {
+                    yield return sense;
+                }
+            }
+        }
+    }
+
+    private static LongmanSense? BuildSense(IElement scope, string? senseLabel, string? guideword, string? signpost, string? field)
+    {
         var sense = new LongmanSense
         {
-            Definition = ExtractText(senseElement, ".DEF"),
-            Grammar = ExtractGrammar(senseElement),
-            Register = ExtractText(senseElement, ".REGISTERLAB"),
-            Synonyms = ExtractSynOrOpp(senseElement, ".SYN"),
-            Antonyms = ExtractSynOrOpp(senseElement, ".OPP"),
-            Examples = examples,
+            Definition = ExtractText(scope, ".DEF"),
+            Grammar = ExtractGrammar(scope),
+            Register = ExtractText(scope, ".REGISTERLAB"),
+            Synonyms = ExtractSynOrOpp(scope, ".SYN"),
+            Antonyms = ExtractSynOrOpp(scope, ".OPP"),
+            Examples = ExtractExamples(scope),
+            SenseLabel = senseLabel,
+            Guideword = guideword,
+            Signpost = signpost,
+            Field = field,
         };
 
         var isMeaningful = sense.Definition is not null
@@ -83,6 +134,237 @@ public static class LongmanHtmlParser
 
         return isMeaningful ? sense : null;
     }
+
+    /// <summary>Idioms and phrasal verbs built on the headword - Longman only cross-references these (a title + a link to their own page), never embeds their definition here.</summary>
+    private static List<LongmanIdiom> ExtractIdioms(IElement ldEntry)
+    {
+        var idioms = new List<LongmanIdiom>();
+        var seenPhrases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var wrapper in ldEntry.QuerySelectorAll(".SubEntry, .PhrVbEntry"))
+        {
+            var link = wrapper.QuerySelector("a.crossRef");
+            if (link is null)
+            {
+                continue;
+            }
+
+            var phrase = ExtractText(wrapper, ".REFHWD") ?? NullIfEmpty(link.TextContent.Trim());
+            if (phrase is null || !seenPhrases.Add(phrase))
+            {
+                continue;
+            }
+
+            idioms.Add(new LongmanIdiom { Phrase = phrase, Url = NullIfEmpty(link.GetAttribute("href")) });
+        }
+
+        return idioms;
+    }
+
+    /// <summary>
+    /// Word origin boxes (.etym) are page-level furniture, sibling to the .dictentry blocks rather
+    /// than nested inside any of them - each carries its own mini .Head with the HOMNUM it belongs
+    /// to, since not every homograph on a page necessarily gets one (e.g. "break" the verb has an
+    /// origin box, "break" the noun doesn't). Keyed by that HOMNUM ("" when a page has none) so
+    /// each entry can look up its own.
+    /// </summary>
+    private static Dictionary<string, string> ExtractEtymologyByHomnum(IDocument document)
+    {
+        var etymologyByHomnum = new Dictionary<string, string>();
+
+        foreach (var etym in document.QuerySelectorAll(".dictionary > .etym"))
+        {
+            var language = ExtractText(etym, ".LANG");
+            var origin = ExtractText(etym, ".ORIGIN");
+
+            var etymology = (language, origin) switch
+            {
+                (not null, not null) => $"{language}: {origin}",
+                (not null, null) => language,
+                (null, not null) => origin,
+                _ => null,
+            };
+
+            if (etymology is null)
+            {
+                continue;
+            }
+
+            var homnum = ExtractText(etym, ".HOMNUM") ?? "";
+            etymologyByHomnum.TryAdd(homnum, etymology);
+        }
+
+        return etymologyByHomnum;
+    }
+
+    /// <summary>
+    /// The page's "Word family" box lists related words in other parts of speech (e.g. "break" the
+    /// verb -> "breakage" noun, "breakable"/"unbreakable" adjective). It's shared furniture above
+    /// every homograph on the page, not specific to one entry, so it's parsed once in <see cref="Parse"/>.
+    /// </summary>
+    private static List<WordFamilyMember> ExtractWordFamily(IDocument document)
+    {
+        var container = document.QuerySelector(".wordfams");
+        if (container is null)
+        {
+            return [];
+        }
+
+        var members = new List<WordFamilyMember>();
+        string? currentPartOfSpeech = null;
+
+        foreach (var element in container.Children)
+        {
+            if (element.ClassList.Contains("pos"))
+            {
+                currentPartOfSpeech = NullIfEmpty(element.TextContent.Trim().Trim('(', ')').Trim());
+                continue;
+            }
+
+            if (currentPartOfSpeech is null)
+            {
+                continue;
+            }
+
+            if (element.ClassList.Contains("opp"))
+            {
+                var opposite = NullIfEmpty(element.QuerySelector("a")?.TextContent.Trim());
+                if (opposite is not null)
+                {
+                    members.Add(new WordFamilyMember { PartOfSpeech = currentPartOfSpeech, Word = opposite, IsOpposite = true });
+                }
+            }
+            else if (element.ClassList.Contains("crossRef") || element.ClassList.Contains("w"))
+            {
+                var word = NullIfEmpty(element.TextContent.Trim());
+                if (word is not null)
+                {
+                    members.Add(new WordFamilyMember { PartOfSpeech = currentPartOfSpeech, Word = word });
+                }
+            }
+        }
+
+        return members;
+    }
+
+    /// <summary>
+    /// A "COLLOCATIONS" box groups collocations under one or more grammar-pattern sections (e.g.
+    /// "break + NOUN"), tied to one sense only by a free-text "Meaning N: ..." heading Longman
+    /// prints itself - kept as a display hint rather than matched back to a specific ISense, since
+    /// it's a paraphrase, not the sense's own definition text.
+    /// </summary>
+    private static List<LongmanCollocationGroup> ExtractCollocationGroups(IElement ldEntry)
+    {
+        var groups = new List<LongmanCollocationGroup>();
+
+        foreach (var box in ldEntry.QuerySelectorAll(".ColloBox"))
+        {
+            var meaningHint = box.Children.FirstOrDefault(c => c.ClassList.Contains("HEADING"))?.TextContent.Trim();
+            meaningHint = NullIfEmpty(meaningHint?.TrimStart('–', ' ').Trim());
+
+            var sections = new List<CollocationSection>();
+
+            foreach (var section in box.Children.Where(c => c.ClassList.Contains("Section")))
+            {
+                var heading = ExtractText(section, ".SECHEADING");
+                if (heading is null)
+                {
+                    continue;
+                }
+
+                var collocations = new List<Collocation>();
+
+                foreach (var collocate in section.Children.Where(c => c.ClassList.Contains("Collocate")))
+                {
+                    var phrase = ExtractText(collocate, ".COLLOC");
+                    if (phrase is null)
+                    {
+                        continue;
+                    }
+
+                    var gloss = collocate.Children.FirstOrDefault(c => c.ClassList.Contains("COLLGLOSS"))
+                        ?.TextContent.Trim(' ', '(', ')', '=');
+
+                    collocations.Add(new Collocation
+                    {
+                        Phrase = phrase,
+                        Gloss = NullIfEmpty(gloss),
+                        Example = ExtractText(collocate, ".EXAMPLE"),
+                    });
+                }
+
+                if (collocations.Count > 0)
+                {
+                    sections.Add(new CollocationSection { Heading = heading, Collocations = collocations });
+                }
+            }
+
+            if (sections.Count > 0)
+            {
+                groups.Add(new LongmanCollocationGroup { MeaningHint = meaningHint, Sections = sections });
+            }
+        }
+
+        return groups;
+    }
+
+    /// <summary>A "THESAURUS" box lists near-synonyms grouped by shade of meaning, each with its own mini part-of-speech/definition/examples.</summary>
+    private static List<ThesaurusSection> ExtractThesaurusSections(IElement ldEntry)
+    {
+        var sections = new List<ThesaurusSection>();
+
+        foreach (var thesBox in ldEntry.QuerySelectorAll(".ThesBox"))
+        {
+            foreach (var section in thesBox.Children.Where(c => c.ClassList.Contains("Section")))
+            {
+                var heading = ExtractText(section, ".SECHEADING");
+                if (heading is null)
+                {
+                    continue;
+                }
+
+                var entries = new List<ThesaurusEntry>();
+
+                foreach (var exponent in section.Children.Where(c => c.ClassList.Contains("Exponent")))
+                {
+                    var word = ExtractText(exponent, ".EXP");
+                    if (word is null)
+                    {
+                        continue;
+                    }
+
+                    var examples = exponent.Children
+                        .Where(c => c.ClassList.Contains("EXAMPLE"))
+                        .Select(e => e.TextContent.Trim())
+                        .Where(t => t.Length > 0)
+                        .ToList();
+
+                    entries.Add(new ThesaurusEntry
+                    {
+                        Word = word,
+                        PartOfSpeech = ExtractText(exponent, ".POS"),
+                        Grammar = ExtractGrammar(exponent),
+                        Definition = ExtractText(exponent, ".DEF"),
+                        Examples = examples,
+                    });
+                }
+
+                if (entries.Count > 0)
+                {
+                    sections.Add(new ThesaurusSection { Heading = heading, Entries = entries });
+                }
+            }
+        }
+
+        return sections;
+    }
+
+    private static string? DirectChildText(IElement scope, string className) =>
+        NullIfEmpty(scope.Children.FirstOrDefault(c => c.ClassList.Contains(className))?.TextContent.Trim());
+
+    /// <summary>Longman bolds the headword itself right before a definition (e.g. subsense "BREAK") as a purely visual re-introduction, not a meaningful guideword - only a value that differs from the headword is one.</summary>
+    private static string? NullIfHeadword(string? value, string headword) =>
+        value is not null && !string.Equals(value, headword, StringComparison.OrdinalIgnoreCase) ? value : null;
 
     /// <summary>
     /// Walks a sense's plain/collocation/grammar-pattern example groups. A GramExa's PROPFORM*

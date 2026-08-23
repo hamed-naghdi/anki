@@ -18,14 +18,8 @@ public static partial class OxfordHtmlParser
 
     public static DictionaryLookupResult<OxfordDictionaryEntry> Parse(string word, string html)
     {
-        var parser = new HtmlParser();
-        using var document = parser.ParseDocument(html);
-
-        // Each homograph (e.g. "read" the verb vs. "read" the noun) is one .entry. Its senses
-        // are NOT nested inside .top-g - .top-g only holds the header (headword/pronunciation/
-        // symbols); <ol class="senses_multiple"> is a sibling of .top-g under the same .entry.
-        var entryElements = document.QuerySelectorAll("#entryContent .entry");
-        if (entryElements.Length == 0)
+        var entries = ParseEntries(html);
+        if (entries.Count == 0)
         {
             return new DictionaryLookupResult<OxfordDictionaryEntry>
             {
@@ -35,9 +29,68 @@ public static partial class OxfordHtmlParser
             };
         }
 
-        var entries = entryElements.Select(ExtractEntry).ToList();
-
         return new DictionaryLookupResult<OxfordDictionaryEntry> { Word = word, Source = SourceName, Entries = entries };
+    }
+
+    /// <summary>Just the entries on one page, with no word/error wrapper - used both by <see cref="Parse"/> and to fold in a sibling homograph's own page (see <see cref="FindOtherHomographUrls"/>).</summary>
+    public static List<OxfordDictionaryEntry> ParseEntries(string html)
+    {
+        var parser = new HtmlParser();
+        using var document = parser.ParseDocument(html);
+
+        // Each homograph (e.g. "read" the verb vs. "read" the noun) is one .entry. Its senses
+        // are NOT nested inside .top-g - .top-g only holds the header (headword/pronunciation/
+        // symbols); <ol class="senses_multiple"> is a sibling of .top-g under the same .entry.
+        return document.QuerySelectorAll("#entryContent .entry").Select(ExtractEntry).ToList();
+    }
+
+    /// <summary>
+    /// Oxford gives each homograph of a word (e.g. "walk" the verb vs. "walk" the noun) its own
+    /// page, and a lookup only ever lands on one of them - there's no single page listing every
+    /// homograph. The "Nearby words" sidebar (an alphabetical-neighbor list meant for browsing) is
+    /// the only place the site cross-references them: since homographs share identical spelling,
+    /// they always sort adjacent to each other and to the page currently open (marked "selected"),
+    /// so every other "Nearby words" row whose own headword text (ignoring its part-of-speech tag)
+    /// matches the selected row's is another homograph's page to fetch.
+    /// </summary>
+    public static List<string> FindOtherHomographUrls(string html)
+    {
+        var parser = new HtmlParser();
+        using var document = parser.ParseDocument(html);
+
+        var nearby = document.QuerySelector(".nearby");
+        var links = nearby is null ? Enumerable.Empty<IElement>() : nearby.QuerySelectorAll("a");
+
+        var selected = links.FirstOrDefault(link => link.ClassList.Contains("selected"));
+        var selectedWord = HeadwordText(selected);
+        if (selectedWord is null)
+        {
+            return [];
+        }
+
+        var urls = new List<string>();
+
+        foreach (var link in links)
+        {
+            if (link.ClassList.Contains("selected") || !string.Equals(HeadwordText(link), selectedWord, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var href = NullIfEmpty(link.GetAttribute("href"));
+            if (href is not null)
+            {
+                urls.Add(href);
+            }
+        }
+
+        return urls;
+    }
+
+    private static string? HeadwordText(IElement? link)
+    {
+        var headwordElement = link?.QuerySelector(".hwd");
+        return headwordElement is null ? null : NullIfEmpty(ExtractTextExcluding(headwordElement, "pos"));
     }
 
     private static OxfordDictionaryEntry ExtractEntry(IElement entryElement)
@@ -48,7 +101,10 @@ public static partial class OxfordHtmlParser
 
         var (isKeyword, keywordLevel) = ExtractKeywordInfo(webtop);
 
+        // An idiom's own <li class="sense"> lives inside its .idm-g wrapper and must not be
+        // counted as a literal meaning of the headword - see ExtractIdioms.
         var senses = entryElement.QuerySelectorAll(".sense")
+            .Where(sense => sense.Closest(".idm-g") is null)
             .Select(ExtractSense)
             .Where(sense => sense is not null)
             .Select(sense => sense!)
@@ -63,7 +119,53 @@ public static partial class OxfordHtmlParser
             KeywordLevel = keywordLevel,
             AcademicWordLists = ExtractAcademicWordLists(webtop),
             Senses = senses,
+            Etymology = ExtractEtymology(entryElement),
+            Idioms = ExtractIdioms(entryElement),
         };
+    }
+
+    /// <summary>
+    /// Idioms built on the headword (e.g. "walk" -> "float on air") get their own .idm-g wrapper,
+    /// each with an <see cref="ExtractSense"/>-shaped &lt;li class="sense"&gt; of its own - reused
+    /// here instead of duplicated, since an idiom's meaning is structured identically to a regular
+    /// one, just under a phrase instead of a sense number.
+    /// </summary>
+    private static List<OxfordIdiom> ExtractIdioms(IElement entryElement)
+    {
+        var idioms = new List<OxfordIdiom>();
+
+        foreach (var group in entryElement.QuerySelectorAll(".idm-g"))
+        {
+            var idmElement = group.QuerySelector(".idm");
+            var phrase = NullIfEmpty(idmElement?.TextContent.Trim());
+            if (phrase is null)
+            {
+                continue;
+            }
+
+            var senses = group.QuerySelectorAll(".sense")
+                .Select(ExtractSense)
+                .Where(sense => sense is not null)
+                .Select(sense => sense!)
+                .ToList();
+
+            idioms.Add(new OxfordIdiom
+            {
+                Phrase = phrase,
+                CefrLevel = NullIfEmpty(idmElement?.GetAttribute("cefr")),
+                Senses = senses,
+            });
+        }
+
+        return idioms;
+    }
+
+    private static string? ExtractEtymology(IElement entryElement)
+    {
+        var wordOrigin = entryElement.QuerySelectorAll(".unbox")
+            .FirstOrDefault(unbox => unbox.GetAttribute("unbox") == "wordorigin");
+
+        return NullIfEmpty(wordOrigin?.QuerySelector(".body")?.TextContent.Trim());
     }
 
     private static OxfordSense? ExtractSense(IElement senseElement)
@@ -81,17 +183,107 @@ public static partial class OxfordHtmlParser
 
         var sense = new OxfordSense
         {
-            Definition = senseElement.Children.FirstOrDefault(c => c.ClassList.Contains("def"))?.TextContent.Trim(),
+            // A regular numbered sense has .def as a direct child; an idiom's (simpler) sense
+            // nests it one level down inside .sensetop instead - searching by descendant rather
+            // than direct child handles both without special-casing idioms here.
+            Definition = ExtractText(senseElement, ".def"),
             Grammar = ExtractGrammar(senseElement),
             Register = ExtractRegister(senseElement),
             Patterns = patterns,
             CefrLevel = cefrLevel,
             IsKeyword = isKeyword,
             Examples = examples,
+            Topics = ExtractTopics(senseElement),
+            CollocationGroup = ExtractCollocationGroup(senseElement),
         };
 
         var isMeaningful = sense.Definition is not null || sense.Examples.Count > 0 || sense.Patterns.Count > 0;
         return isMeaningful ? sense : null;
+    }
+
+    private static List<OxfordSenseTopic> ExtractTopics(IElement senseElement)
+    {
+        var topics = new List<OxfordSenseTopic>();
+
+        foreach (var topic in senseElement.QuerySelectorAll(".topic-g .topic"))
+        {
+            var name = ExtractText(topic, ".topic_name");
+            if (name is null)
+            {
+                continue;
+            }
+
+            topics.Add(new OxfordSenseTopic { Name = name, CefrLevel = ExtractText(topic, ".topic_cefr") });
+        }
+
+        return topics;
+    }
+
+    /// <summary>
+    /// The "Oxford Collocations Dictionary" preview box alternates a role-label span
+    /// (".unbox", e.g. "adverb") with the ".collocs_list" of collocates for that role; a literal
+    /// "…" item marks a truncated list, not a real collocate.
+    /// </summary>
+    private static OxfordCollocationGroup? ExtractCollocationGroup(IElement senseElement)
+    {
+        var snippet = senseElement.QuerySelectorAll(".unbox")
+            .FirstOrDefault(unbox => unbox.GetAttribute("unbox") == "snippet");
+        var body = snippet?.QuerySelector(".body");
+        if (body is null)
+        {
+            return null;
+        }
+
+        var sections = new List<CollocationSection>();
+        string? heading = null;
+        var collocations = new List<Collocation>();
+        var isTruncated = false;
+
+        foreach (var child in body.Children)
+        {
+            if (child.ClassList.Contains("unbox"))
+            {
+                if (heading is not null && collocations.Count > 0)
+                {
+                    sections.Add(new CollocationSection { Heading = heading, Collocations = [.. collocations] });
+                }
+
+                heading = child.TextContent.Trim();
+                collocations.Clear();
+            }
+            else if (child.ClassList.Contains("collocs_list"))
+            {
+                foreach (var item in child.QuerySelectorAll("li"))
+                {
+                    var text = item.TextContent.Trim();
+                    if (text == "…")
+                    {
+                        isTruncated = true;
+                    }
+                    else if (text.Length > 0)
+                    {
+                        collocations.Add(new Collocation { Phrase = text });
+                    }
+                }
+            }
+        }
+
+        if (heading is not null && collocations.Count > 0)
+        {
+            sections.Add(new CollocationSection { Heading = heading, Collocations = collocations });
+        }
+
+        if (sections.Count == 0)
+        {
+            return null;
+        }
+
+        return new OxfordCollocationGroup
+        {
+            Sections = sections,
+            IsTruncated = isTruncated,
+            FullEntryUrl = NullIfEmpty(snippet!.QuerySelector(".xref_to_full_entry a")?.GetAttribute("href")),
+        };
     }
 
     /// <summary>

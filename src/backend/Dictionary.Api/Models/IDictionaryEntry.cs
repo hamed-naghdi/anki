@@ -13,4 +13,10 @@ public interface IDictionaryEntry
     IReadOnlyList<Pronunciation> Pronunciations { get; }
     IReadOnlyList<InflectionForm> InflectionForms { get; }
     IReadOnlyList<ISense> Senses { get; }
+
+    /// <summary>Free-text word origin/history, e.g. "Old English wealcan 'roll, toss'...". Null when the source doesn't give one for this entry.</summary>
+    string? Etymology { get; }
+
+    /// <summary>Idiomatic phrases built on the headword, kept out of <see cref="Senses"/> - see <see cref="IIdiom"/>.</summary>
+    IReadOnlyList<IIdiom> Idioms { get; }
 }

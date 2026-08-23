@@ -177,4 +177,84 @@ public class OxfordHtmlParserTests
 
         Assert.Single(pronunciation.American);
     }
+
+    [Fact]
+    public void Parse_WalkFixture_SeparatesIdiomsFromRegularSensesWithTheirDefinitionEmbedded()
+    {
+        var html = LoadFixture("oxford-walk.html");
+
+        var result = OxfordHtmlParser.Parse("walk", html);
+
+        Assert.Null(result.Error);
+        var entry = Assert.Single(result.Entries, e => e.PartOfSpeech == "verb");
+
+        var idiom = Assert.Single(entry.Idioms, i => i.Phrase == "float/walk on air");
+        Assert.Equal("c2", idiom.CefrLevel);
+        var idiomSense = Assert.Single(idiom.Senses);
+        Assert.Equal("to feel very happy", idiomSense.Definition);
+
+        // An idiom's meaning must never be counted as a literal numbered sense of "walk" itself.
+        Assert.DoesNotContain(entry.Senses, s => s.Definition == "to feel very happy");
+    }
+
+    [Fact]
+    public void Parse_WalkFixture_ExtractsEtymology()
+    {
+        var html = LoadFixture("oxford-walk.html");
+
+        var result = OxfordHtmlParser.Parse("walk", html);
+
+        Assert.Null(result.Error);
+        var entry = Assert.Single(result.Entries, e => e.PartOfSpeech == "verb");
+
+        Assert.Contains("Old English", entry.Etymology);
+        Assert.Contains("wealcan", entry.Etymology);
+    }
+
+    [Fact]
+    public void Parse_WalkFixture_ExtractsPerSenseTopics()
+    {
+        var html = LoadFixture("oxford-walk.html");
+
+        var result = OxfordHtmlParser.Parse("walk", html);
+
+        Assert.Null(result.Error);
+        var entry = Assert.Single(result.Entries, e => e.PartOfSpeech == "verb");
+
+        var firstSense = entry.Senses[0];
+        var topic = Assert.Single(firstSense.Topics);
+        Assert.Equal("Health and Fitness", topic.Name);
+        Assert.Equal("a1", topic.CefrLevel);
+    }
+
+    [Fact]
+    public void Parse_WalkFixture_ExtractsTruncatedCollocationGroupWithFullEntryLink()
+    {
+        var html = LoadFixture("oxford-walk.html");
+
+        var result = OxfordHtmlParser.Parse("walk", html);
+
+        Assert.Null(result.Error);
+        var entry = Assert.Single(result.Entries, e => e.PartOfSpeech == "verb");
+
+        var group = entry.Senses[0].CollocationGroup;
+        Assert.NotNull(group);
+        Assert.True(group!.IsTruncated);
+        Assert.NotNull(group.FullEntryUrl);
+
+        var adverbSection = Assert.Single(group.Sections, s => s.Heading == "adverb");
+        Assert.Contains(adverbSection.Collocations, c => c.Phrase == "briskly");
+        Assert.DoesNotContain(adverbSection.Collocations, c => c.Phrase == "…");
+    }
+
+    [Fact]
+    public void FindOtherHomographUrls_WalkFixture_FindsTheNounPageButNotUnrelatedNearbyWords()
+    {
+        var html = LoadFixture("oxford-walk.html");
+
+        var urls = OxfordHtmlParser.FindOtherHomographUrls(html);
+
+        var url = Assert.Single(urls);
+        Assert.Equal("https://www.oxfordlearnersdictionaries.com/definition/english/walk_2", url);
+    }
 }

@@ -1,3 +1,4 @@
+using Dictionary.Api.Models;
 using Dictionary.Api.Providers.Longman;
 using Dictionary.Api.Providers.Longman.Models;
 
@@ -210,5 +211,120 @@ public class LongmanHtmlParserTests
         var plural = Assert.Single(entry.InflectionForms, f => f.Label == "plural" && f.Form == "wives");
         Assert.NotNull(plural.Pronunciation);
         Assert.Equal("waɪvz", Assert.Single(plural.Pronunciation!.British).Ipa);
+    }
+
+    [Fact]
+    public void Parse_BreakFixture_FlattensLetteredSubsensesInsteadOfDroppingAllButTheFirst()
+    {
+        var html = LoadFixture("longman-break.html");
+
+        var result = LongmanHtmlParser.Parse("break", html);
+
+        Assert.Null(result.Error);
+        var verbEntry = result.Entries.First(e => e.PartOfSpeech == "verb");
+
+        var sense1a = Assert.Single(verbEntry.Senses, s => s.SenseLabel == "1a");
+        var sense1b = Assert.Single(verbEntry.Senses, s => s.SenseLabel == "1b");
+
+        // Both lettered sub-senses share their parent's guideword/signpost...
+        Assert.Equal("IN PIECES", sense1a.Guideword);
+        Assert.Equal("separate into pieces", sense1a.Signpost);
+        Assert.Equal(sense1a.Guideword, sense1b.Guideword);
+        Assert.Equal(sense1a.Signpost, sense1b.Signpost);
+
+        // ...but each keeps its own distinct definition and examples - "1b" used to be dropped
+        // entirely because .DEF/.EXAMPLE were read straight off the shared parent .Sense.
+        Assert.Contains("you make it separate into two or more pieces", sense1a.Definition);
+        Assert.NotEmpty(sense1a.Examples);
+        Assert.Contains("if something breaks, it separates into two or more pieces", sense1b.Definition);
+        Assert.NotEmpty(sense1b.Examples);
+        Assert.NotEqual(sense1a.Definition, sense1b.Definition);
+    }
+
+    [Fact]
+    public void Parse_BreakFixture_ExtractsIdiomsAndPhrasalVerbsAsCrossReferencesOnly()
+    {
+        var html = LoadFixture("longman-break.html");
+
+        var result = LongmanHtmlParser.Parse("break", html);
+
+        Assert.Null(result.Error);
+        var verbEntry = result.Entries.First(e => e.PartOfSpeech == "verb");
+
+        var breakAway = Assert.Single(verbEntry.Idioms, i => i.Phrase == "break away");
+        Assert.Equal("/dictionary/break-away", breakAway.Url);
+
+        // Longman only links to these - it never embeds their definition on this page.
+        IIdiom idiom = breakAway;
+        Assert.Empty(idiom.Senses);
+        Assert.Null(idiom.CefrLevel);
+
+        // A cross-referenced phrase must never be mistaken for a literal numbered sense.
+        Assert.DoesNotContain(verbEntry.Senses, s => s.Definition == "break away");
+    }
+
+    [Fact]
+    public void Parse_BreakFixture_ExtractsEtymologyOnlyForTheHomographThatHasOne()
+    {
+        var html = LoadFixture("longman-break.html");
+
+        var result = LongmanHtmlParser.Parse("break", html);
+
+        Assert.Null(result.Error);
+        var verbEntry = result.Entries.First(e => e.PartOfSpeech == "verb");
+        var nounEntry = result.Entries.First(e => e.PartOfSpeech == "noun");
+
+        Assert.Equal("Old English: brecan", verbEntry.Etymology);
+        Assert.Null(nounEntry.Etymology);
+    }
+
+    [Fact]
+    public void Parse_BreakFixture_ExtractsWordFamilyWithOpposites()
+    {
+        var html = LoadFixture("longman-break.html");
+
+        var result = LongmanHtmlParser.Parse("break", html);
+
+        Assert.Null(result.Error);
+        var entry = result.Entries[0];
+
+        Assert.Contains(entry.WordFamily, m => m.PartOfSpeech == "noun" && m.Word == "breakage" && !m.IsOpposite);
+        Assert.Contains(entry.WordFamily, m => m.PartOfSpeech == "adjective" && m.Word == "breakable" && !m.IsOpposite);
+        Assert.Contains(entry.WordFamily, m => m.PartOfSpeech == "adjective" && m.Word == "unbreakable" && m.IsOpposite);
+    }
+
+    [Fact]
+    public void Parse_BreakFixture_ExtractsCollocationGroupWithMeaningHint()
+    {
+        var html = LoadFixture("longman-break.html");
+
+        var result = LongmanHtmlParser.Parse("break", html);
+
+        Assert.Null(result.Error);
+        var verbEntry = result.Entries.First(e => e.PartOfSpeech == "verb");
+
+        var group = Assert.Single(verbEntry.CollocationGroups);
+        Assert.Contains("Meaning 5", group.MeaningHint);
+
+        var section = Assert.Single(group.Sections, s => s.Heading == "break + NOUN");
+        Assert.Contains(section.Collocations, c => c.Phrase == "break your promise" && c.Gloss is null);
+        Assert.Contains(section.Collocations, c => c.Phrase == "break your word" && c.Gloss != null && c.Gloss.Contains("break your promise"));
+    }
+
+    [Fact]
+    public void Parse_BreakFixture_ExtractsThesaurusSections()
+    {
+        var html = LoadFixture("longman-break.html");
+
+        var result = LongmanHtmlParser.Parse("break", html);
+
+        Assert.Null(result.Error);
+        var entry = result.Entries[0];
+
+        var section = Assert.Single(entry.ThesaurusSections, s => s.Heading == "to break something");
+        var smash = Assert.Single(section.Entries, e => e.Word == "smash");
+        Assert.Equal("verb", smash.PartOfSpeech);
+        Assert.Contains("a lot of force", smash.Definition);
+        Assert.NotEmpty(smash.Examples);
     }
 }

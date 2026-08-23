@@ -25,5 +25,11 @@ public sealed class OxfordSense : ISense
 
     public required IReadOnlyList<OxfordExample> Examples { get; init; }
 
+    /// <summary>Subject-area tags Oxford attaches to this specific sense, e.g. "Health and Fitness" at CEFR "a1" for one sense of "walk".</summary>
+    public required IReadOnlyList<OxfordSenseTopic> Topics { get; init; }
+
+    /// <summary>This sense's truncated "Oxford Collocations Dictionary" preview box, when it has one.</summary>
+    public OxfordCollocationGroup? CollocationGroup { get; init; }
+
     IReadOnlyList<IExample> ISense.Examples => Examples;
 }

@@ -20,5 +20,12 @@ public sealed class OxfordDictionaryEntry : IDictionaryEntry
 
     public required IReadOnlyList<OxfordSense> Senses { get; init; }
 
+    /// <summary>Word origin/history from the entry's own "Word Origin" box. Null when this entry doesn't have one.</summary>
+    public string? Etymology { get; init; }
+
+    /// <summary>Idioms built on the headword, with their definitions embedded here (see <see cref="OxfordIdiom"/>) - kept out of <see cref="Senses"/> so they aren't mistaken for a literal meaning of the headword.</summary>
+    public required IReadOnlyList<OxfordIdiom> Idioms { get; init; }
+
     IReadOnlyList<ISense> IDictionaryEntry.Senses => Senses;
+    IReadOnlyList<IIdiom> IDictionaryEntry.Idioms => Idioms;
 }
