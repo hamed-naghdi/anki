@@ -110,9 +110,54 @@
         }
       </aside>
 
-      <div class="flex flex-1 items-center justify-center rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:min-h-80">
-        <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Card contents — coming soon</p>
+      <div class="flex flex-1 flex-col rounded-2xl bg-[#FAF8F4] ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:min-h-80">
+        <p-tabs [value]="activeTab()" (valueChange)="activeTab.set($any($event))">
+          <p-tablist>
+            <p-tab value="front">Front</p-tab>
+            <p-tab value="back">Back</p-tab>
+          </p-tablist>
+          <p-tabpanels>
+            <p-tabpanel value="front">
+              <ng-container *ngTemplateOutlet="resultsColumn; context: { side: 'front' }" />
+            </p-tabpanel>
+            <p-tabpanel value="back">
+              <ng-container *ngTemplateOutlet="resultsColumn; context: { side: 'back' }" />
+            </p-tabpanel>
+          </p-tabpanels>
+        </p-tabs>
       </div>
+
+      <ng-template #resultsColumn let-side="side">
+        <div class="flex flex-col gap-4 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="font-serif text-xl text-[#2b2621] dark:text-[#e8e2d9]">{{ submittedTerm() }}</h2>
+            @if (visibleResultSources().length) {
+              <button pButton text size="small" type="button" (click)="toggleExpandAll(side)">
+                {{ isAllExpanded(side) ? 'Collapse all' : 'Expand all' }}
+              </button>
+            }
+          </div>
+
+          @if (visibleResultSources().length) {
+            <p-accordion
+              [value]="expandedResultSourcesFor(side)"
+              (valueChange)="onExpandedResultSourcesChange(side, $event)"
+              [multiple]="true"
+            >
+              @for (source of visibleResultSources(); track source) {
+                <p-accordion-panel [value]="source">
+                  <p-accordion-header>{{ source }}</p-accordion-header>
+                  <p-accordion-content>
+                    <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">result of {{ source }} is available</p>
+                  </p-accordion-content>
+                </p-accordion-panel>
+              }
+            </p-accordion>
+          } @else {
+            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Select at least one source in the left column to see results here.</p>
+          }
+        </div>
+      </ng-template>
 
       <div class="flex w-full items-center justify-center rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:w-80 lg:shrink-0">
         <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Card preview — coming soon</p>

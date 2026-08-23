@@ -1,11 +1,15 @@
-import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Component, computed, inject, linkedSignal, signal, WritableSignal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { httpResource } from '@angular/common/http';
+import { Accordion, AccordionContent, AccordionHeader, AccordionPanel } from 'primeng/accordion';
+import { ButtonDirective } from 'primeng/button';
 import { Checkbox } from 'primeng/checkbox';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Select } from 'primeng/select';
+import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { TreeSelect } from 'primeng/treeselect';
 import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
@@ -18,14 +22,30 @@ import {
   dictionaryLookupRequest,
 } from '../core/dictionary-api';
 
+// Front and back look at the exact same result data, but everything about how a person interacts
+// with that data on each side - collapsing an accordion, and soon which fields are checked onto
+// that side - is tracked independently, so acting on one side must never affect the other.
+type CardSide = 'front' | 'back';
+
 @Component({
   imports: [
+    Accordion,
+    AccordionContent,
+    AccordionHeader,
+    AccordionPanel,
+    ButtonDirective,
     Checkbox,
     IconField,
     InputIcon,
     InputText,
+    NgTemplateOutlet,
     ReactiveFormsModule,
     Select,
+    Tab,
+    TabList,
+    TabPanel,
+    TabPanels,
+    Tabs,
     TreeSelect,
     FormsModule,
     Search,
@@ -79,6 +99,43 @@ export class CardNew {
   protected toggleResultSource(source: string, checked: boolean): void {
     this.selectedResultSources.update((sources) =>
       checked ? [...sources, source] : sources.filter((s) => s !== source),
+    );
+  }
+
+  protected readonly activeTab = signal<CardSide>('front');
+
+  // Which of the result accordions are open, tracked per side. Each resets to "everything with a
+  // checkbox available, all expanded" on every new fetch, but stays writable in between - and
+  // collapsing a panel on one side must never touch the other side's own signal.
+  private readonly expandedResultSourcesBySide: Record<CardSide, WritableSignal<string[]>> = {
+    front: linkedSignal(() => this.resultSources()),
+    back: linkedSignal(() => this.resultSources()),
+  };
+
+  // Only sources whose checkbox is currently checked get an accordion at all.
+  protected readonly visibleResultSources = computed(() =>
+    this.resultSources().filter((source) => this.isResultSourceSelected(source)),
+  );
+
+  protected expandedResultSourcesFor(side: CardSide): string[] {
+    return this.expandedResultSourcesBySide[side]();
+  }
+
+  protected isAllExpanded(side: CardSide): boolean {
+    const expanded = this.expandedResultSourcesBySide[side]();
+    return this.visibleResultSources().every((source) => expanded.includes(source));
+  }
+
+  protected toggleExpandAll(side: CardSide): void {
+    this.expandedResultSourcesBySide[side].set(this.isAllExpanded(side) ? [] : [...this.visibleResultSources()]);
+  }
+
+  protected onExpandedResultSourcesChange(
+    side: CardSide,
+    value: string | number | (string | number)[] | null | undefined,
+  ): void {
+    this.expandedResultSourcesBySide[side].set(
+      Array.isArray(value) ? value.map(String) : value === null || value === undefined ? [] : [String(value)],
     );
   }
 
