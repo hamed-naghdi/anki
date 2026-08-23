@@ -4,5 +4,5 @@ import { CardNew } from './card-new/card-new';
 
 export const routes: Routes = [
   { path: '', component: Decks },
-  { path: 'card-new', component: CardNew },
+  { path: 'cards/new', component: CardNew },
 ];

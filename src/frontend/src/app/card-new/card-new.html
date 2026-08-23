@@ -28,6 +28,20 @@
   </div>
 
   <div class="flex flex-col gap-1">
+    <p-select
+      [options]="dictionarySources"
+      optionLabel="label"
+      optionValue="key"
+      [ngModel]="selectedSources()"
+      (ngModelChange)="selectedSources.set($event)"
+      [multiple]="true"
+      [checkmark]="true"
+      placeholder="Sources"
+      class="w-56"
+    />
+  </div>
+
+  <div class="flex flex-col gap-1">
     <p-treeselect
       [options]="deckService.deckTree()"
       [ngModel]="deckService.selectedNode()"
@@ -56,4 +70,53 @@
     }
   </div>
 </div>
-<div class="mt-5">Bottom</div>
+
+<section class="mt-6">
+  @if (!hasSearched()) {
+    <div class="rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10">
+      <p class="font-serif text-lg text-[#2b2621] dark:text-[#e8e2d9]">Search a word to get started</p>
+      <p class="mt-1 text-sm text-[#6b6156] dark:text-[#a89e91]">
+        Definitions from the selected dictionaries will appear here.
+      </p>
+    </div>
+  } @else if (searchResource.isLoading()) {
+    <div class="rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10">
+      <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Looking up "{{ submittedTerm() }}"…</p>
+    </div>
+  } @else if (searchError(); as err) {
+    <div class="rounded-2xl bg-red-50 p-6 text-sm text-red-600 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-900">
+      {{ err }}
+    </div>
+  } @else {
+    <div class="flex flex-col gap-4 lg:flex-row">
+      <aside class="flex w-full flex-col gap-3 rounded-2xl bg-[#FAF8F4] p-4 ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:w-48 lg:shrink-0">
+        <span class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Sources</span>
+        @if (resultSources().length) {
+          <div class="flex flex-col gap-2.5">
+            @for (source of resultSources(); track source) {
+              <div class="flex items-center gap-2">
+                <p-checkbox
+                  [binary]="true"
+                  [ngModel]="isResultSourceSelected(source)"
+                  (ngModelChange)="toggleResultSource(source, $event)"
+                  [inputId]="'source-' + source"
+                />
+                <label [for]="'source-' + source" class="text-sm text-[#2b2621] dark:text-[#e8e2d9]">{{ source }}</label>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">No sources returned results.</p>
+        }
+      </aside>
+
+      <div class="flex flex-1 items-center justify-center rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:min-h-80">
+        <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Card contents — coming soon</p>
+      </div>
+
+      <div class="flex w-full items-center justify-center rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:w-80 lg:shrink-0">
+        <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Card preview — coming soon</p>
+      </div>
+    </div>
+  }
+</section>
