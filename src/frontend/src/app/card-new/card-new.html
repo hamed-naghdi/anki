@@ -266,6 +266,9 @@
         </span>
       }
     }
+    @case ('richText') {
+      <div class="prose-sm max-w-none text-[var(--p-text-color)]" [innerHTML]="field.html()"></div>
+    }
   }
 </ng-template>
 
@@ -500,9 +503,14 @@
             <p class="text-sm text-[var(--p-text-muted-color)]">Check fields in the results column to preview them here.</p>
           }
 
-          <span class="mt-2 text-xs font-semibold uppercase tracking-wide text-[var(--p-text-muted-color)]">
-            {{ side === 'front' ? 'Front' : 'Back' }} items · drag groups or fields to reorder, drag a field onto another group to move it there
-          </span>
+          <div class="mt-2 flex items-center justify-between gap-3">
+            <span class="text-xs font-semibold uppercase tracking-wide text-[var(--p-text-muted-color)]">
+              {{ side === 'front' ? 'Front' : 'Back' }} items · drag groups or fields to reorder, drag a field onto another group to move it there
+            </span>
+            <button pButton text size="small" type="button" (click)="addRichTextBlock(side)">
+              <svg data-p-icon="plus" class="size-3.5"></svg>Add text block
+            </button>
+          </div>
 
           @if (orderGroupsFor(side).length) {
             <p-tree
@@ -534,6 +542,70 @@
                     >
                       <svg data-p-icon="times" class="size-3"></svg>
                     </button>
+                  </div>
+                } @else if (node.data.field.kind === 'richText') {
+                  <div class="flex w-full flex-col gap-1.5 py-1">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="inline-flex items-center gap-1.5 text-sm text-[var(--p-text-color)]">
+                        <svg data-p-icon="grip-vertical" class="size-3.5 shrink-0 cursor-grab text-[var(--p-text-muted-color)]"></svg>
+                        Custom text
+                        @if (node.data.isCopy) {
+                          <span class="ml-1 shrink-0 rounded bg-black/10 px-1 text-[10px] dark:bg-white/10">copy</span>
+                        }
+                      </span>
+                      <span class="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          class="shrink-0 rounded p-1 text-[var(--p-text-muted-color)] hover:bg-black/10 dark:hover:bg-white/20"
+                          [title]="node.data.field.viewMode() === 'html' ? 'Switch to rich text' : 'Switch to HTML source'"
+                          (click)="toggleRichTextViewMode(node.data.field)"
+                        >
+                          <svg data-p-icon="code" class="size-3"></svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="shrink-0 rounded p-1 text-[var(--p-text-muted-color)] hover:bg-black/10 dark:hover:bg-white/20"
+                          title="Duplicate"
+                          (click)="duplicateField(side, node.data.instanceKey)"
+                        >
+                          <svg data-p-icon="plus" class="size-3"></svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="shrink-0 rounded p-1 text-[var(--p-text-muted-color)] hover:bg-black/10 dark:hover:bg-white/20"
+                          title="Remove"
+                          (click)="removeField(side, node.data.instanceKey)"
+                        >
+                          <svg data-p-icon="times" class="size-3"></svg>
+                        </button>
+                      </span>
+                    </div>
+                    <!--
+                      draggable="false" overrides the draggable="true" the tree row above puts on
+                      every ancestor - without it, a known browser quirk stops some keys from typing
+                      into a contenteditable nested inside a draggable element. (keydown.stop) is a
+                      separate fix for a separate cause: p-tree's own row-level keydown handler
+                      treats Space/Enter/arrows/Tab as row navigation and calls preventDefault() on
+                      them - it doesn't check whether the event actually originated from a nested
+                      widget like this editor, so those keys never reach Quill/the textarea at all
+                      unless the event is stopped here before it bubbles up to that row listener.
+                    -->
+                    <div draggable="false" (keydown)="$event.stopPropagation()">
+                      @if (node.data.field.viewMode() === 'html') {
+                        <textarea
+                          class="w-full rounded border border-surface-300 bg-transparent p-2 font-mono text-xs text-[var(--p-text-color)] dark:border-surface-600"
+                          rows="4"
+                          [ngModel]="node.data.field.html()"
+                          (ngModelChange)="onRichTextHtmlChange(node.data.field, $event)"
+                        ></textarea>
+                      } @else {
+                        <p-editor
+                          [ngModel]="node.data.field.html()"
+                          (ngModelChange)="onRichTextHtmlChange(node.data.field, $event)"
+                          [style]="{ height: '160px' }"
+                        />
+                      }
+                    </div>
                   </div>
                 } @else {
                   <div class="flex w-full items-center justify-between gap-2 text-sm">
