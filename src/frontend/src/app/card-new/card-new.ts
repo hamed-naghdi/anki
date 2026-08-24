@@ -110,7 +110,8 @@ interface PlacedField {
 
 // A group node in a side's order tree - a free-form container the user builds by hand (drag fields
 // in and out, drag the group itself to reorder), not tied to any one entry or dictionary. The only
-// structural rule is that a group can hold at most one headword (enforced in isValidOrderDrop).
+// structural rules are that a group can hold at most one headword, and inflection forms - once
+// placed - can never leave whichever single group they're in (both enforced in onOrderTreeDrop).
 interface OrderGroupData {
   isGroup: true;
 }
@@ -337,9 +338,7 @@ export class CardNew {
         key: `${entryKey}-inflectionForms`,
         label: 'Inflection forms',
         data: { isGroup: true, label: 'Inflection forms' } satisfies EntryFieldGroup,
-        children: entry.inflectionForms.map((form, formIndex) =>
-          field('inflectionForm', form.label ? `${form.label}: ${form.form}` : form.form, formIndex),
-        ),
+        children: entry.inflectionForms.map((form, formIndex) => field('inflectionForm', form.label ?? 'Inflection form', formIndex)),
       });
     }
 
@@ -513,17 +512,35 @@ export class CardNew {
     return (group.children ?? []).map((child) => child.data as PlacedField);
   }
 
+  protected nonInflectionFieldsFor(group: TreeNode): PlacedField[] {
+    return this.groupFieldsFor(group).filter((placed) => placed.field.kind !== 'inflectionForm');
+  }
+
+  protected inflectionFieldsFor(group: TreeNode): PlacedField[] {
+    return this.groupFieldsFor(group).filter((placed) => placed.field.kind === 'inflectionForm');
+  }
+
+  protected isInflectionGroup(group: TreeNode): boolean {
+    return this.inflectionFieldsFor(group).length > 0;
+  }
+
   // The reorder list's label for a group - the headword (and part of speech) of whichever field in
-  // it is a headword, falling back to a generic label for a group that has none (any other mix of
-  // fields is a perfectly valid group - see the class comment on OrderGroupData).
+  // it is a headword; failing that, "<dictionary>: Inflection forms" for a group of inflection
+  // forms (their default group is per-dictionary - see reconcileOrderTree); failing that, a plain
+  // fallback (any other mix of fields is still a perfectly valid group - see OrderGroupData).
   protected groupLabelFor(side: CardSide, group: TreeNode): string {
-    const headword = this.groupFieldsFor(group).find((placed) => placed.field.kind === 'headword');
-    if (!headword) {
-      const index = this.orderBySide[side]().indexOf(group);
-      return `Group ${index + 1}`;
+    const fields = this.groupFieldsFor(group);
+    const headword = fields.find((placed) => placed.field.kind === 'headword');
+    if (headword) {
+      const entry = headword.field.entry;
+      return entry.partOfSpeech ? `${entry.headword} (${entry.partOfSpeech})` : entry.headword;
     }
-    const entry = headword.field.entry;
-    return entry.partOfSpeech ? `${entry.headword} (${entry.partOfSpeech})` : entry.headword;
+    const inflection = fields.find((placed) => placed.field.kind === 'inflectionForm');
+    if (inflection) {
+      return buildPath(inflection.field.sourceLabel, inflection.field.entryOrdinal, inflection.field.entryCount, 'Inflection forms');
+    }
+    const index = this.orderBySide[side]().indexOf(group);
+    return `Group ${index + 1}`;
   }
 
   protected fieldPathLabel(field: EntryFieldData): string {
@@ -537,9 +554,11 @@ export class CardNew {
   // Rebuilds a side's order tree from a target set of checked results-tree leaves: copies are left
   // exactly where they are (they aren't tied to any checkbox); an existing original leaf is kept in
   // whichever group it currently sits in (the user may have dragged it) as long as it's still
-  // checked, and dropped otherwise; a newly checked leaf that isn't anywhere yet is appended into
-  // its own entry's default group (created fresh at the end if that group doesn't currently exist -
-  // e.g. it was emptied out earlier by the user moving everything out of it).
+  // checked, and dropped otherwise; a newly checked leaf that isn't anywhere yet is appended into a
+  // default group - its own entry's group for anything else, but its own DICTIONARY's shared
+  // inflections group for inflection forms (grouped by source, not by entry, so two homographs from
+  // the same dictionary still share one inflections group, but different dictionaries never do) -
+  // once there, an inflection form can never be dragged into a different group (wouldLeaveInflectionGroup).
   private reconcileOrderTree(
     existingGroups: TreeNode[],
     checkedKeys: ReadonlySet<string>,
@@ -565,7 +584,7 @@ export class CardNew {
       }
     }
 
-    const additionsByEntry = new Map<string, TreeNode[]>();
+    const additionsByGroupKey = new Map<string, TreeNode[]>();
     for (const key of checkedKeys) {
       if (seenOriginalKeys.has(key)) {
         continue;
@@ -573,16 +592,17 @@ export class CardNew {
       const field = fieldsByKey.get(key)!;
       const placed: PlacedField = { instanceKey: key, field, isCopy: false };
       const child: TreeNode = { key, data: placed };
-      const list = additionsByEntry.get(field.entryKey);
+      const groupKey =
+        field.kind === 'inflectionForm' ? `group-inflections-${field.sourceLabel}` : `group-${field.entryKey}`;
+      const list = additionsByGroupKey.get(groupKey);
       if (list) {
         list.push(child);
       } else {
-        additionsByEntry.set(field.entryKey, [child]);
+        additionsByGroupKey.set(groupKey, [child]);
       }
     }
 
-    for (const [entryKey, newChildren] of additionsByEntry) {
-      const groupKey = `group-${entryKey}`;
+    for (const [groupKey, newChildren] of additionsByGroupKey) {
       const existingGroup = nextGroups.find((group) => group.key === groupKey);
       if (existingGroup) {
         existingGroup.children = [...(existingGroup.children ?? []), ...newChildren];
@@ -716,12 +736,24 @@ export class CardNew {
     return this.orderBySide[side]().find((group) => (group.children ?? []).includes(leafNode));
   }
 
+  // Whether dragging this field would move an inflection form out of the single group inflections
+  // are always kept in - true for any inflection form being dropped anywhere but back into its own
+  // current group, since they're never allowed to split across two groups.
+  private wouldLeaveInflectionGroup(side: CardSide, dragNode: TreeNode, targetGroup: TreeNode): boolean {
+    const dragField = (dragNode.data as PlacedField).field;
+    if (dragField.kind !== 'inflectionForm') {
+      return false;
+    }
+    return this.ownerGroup(side, dragNode) !== targetGroup;
+  }
+
   // Vets every drag before PrimeNG applies it (the tree's [validateDrop]="true" routes drops
   // through here instead of auto-applying them): groups may only reorder among themselves at the
   // top level (never nest inside another group), a field may only join a group by dropping directly
   // onto its header or between two of its existing fields (never nest inside another field, which
-  // is what PrimeNG's default reparenting would otherwise do), and no drop may give a group a
-  // second headword.
+  // is what PrimeNG's default reparenting would otherwise do), no drop may give a group a second
+  // headword, and an inflection form may only ever be reordered within its own group, never moved
+  // into a different one.
   protected onOrderTreeDrop(side: CardSide, event: TreeNodeDropEvent): void {
     if (!event.dragNode || !event.dropNode || !event.accept) {
       return;
@@ -735,10 +767,16 @@ export class CardNew {
     if (dragIsGroup) {
       valid = event.dropPoint === 'between' && dropIsGroup;
     } else if (event.dropPoint === 'node') {
-      valid = dropIsGroup && !this.wouldConflictOnHeadword(dragNode, dropNode);
+      valid =
+        dropIsGroup &&
+        !this.wouldConflictOnHeadword(dragNode, dropNode) &&
+        !this.wouldLeaveInflectionGroup(side, dragNode, dropNode);
     } else {
       const targetGroup = dropIsGroup ? undefined : this.ownerGroup(side, dropNode);
-      valid = !!targetGroup && !this.wouldConflictOnHeadword(dragNode, targetGroup);
+      valid =
+        !!targetGroup &&
+        !this.wouldConflictOnHeadword(dragNode, targetGroup) &&
+        !this.wouldLeaveInflectionGroup(side, dragNode, targetGroup);
     }
 
     if (!valid) {

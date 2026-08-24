@@ -169,6 +169,9 @@
     @case ('inflectionForm') {
       @if (inflectionFormFor(field); as form) {
         <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+          @if (field.label; as label) {
+            <span class="text-xs font-medium text-[#6b6156] dark:text-[#a89e91]">{{ label }}:</span>
+          }
           <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ form.form }}</span>
           @if (form.pronunciation?.british?.[0]; as uk) {
             <span class="inline-flex items-center gap-1 text-xs text-[#6b6156] dark:text-[#a89e91]">
@@ -298,7 +301,9 @@
                           <span class="text-sm font-medium text-[#6b6156] dark:text-[#a89e91]">{{ node.label }}</span>
                         } @else if (node.data?.kind; as kind) {
                           <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 text-sm">
-                            <span class="font-medium text-[#6b6156] dark:text-[#a89e91]">{{ node.data.label }}:</span>
+                            @if (kind !== 'inflectionForm') {
+                              <span class="font-medium text-[#6b6156] dark:text-[#a89e91]">{{ node.data.label }}:</span>
+                            }
                             <ng-container *ngTemplateOutlet="fieldChip; context: { field: node.data }" />
                           </span>
                         } @else {
@@ -385,24 +390,35 @@
         A group's items, in whatever order the user dragged them into - not a fixed slot layout, so
         any mix of fields (from any entry or dictionary) can sit in one group. Headword/homograph/
         part of speech still get their own typography; everything else renders via fieldChip.
+        Inflection forms are singled out: each gets its own line rather than wrapping inline with
+        the rest, and a group that holds any gets a left gap to set it apart from the row above it.
       -->
       <ng-template #groupContent let-group="group">
-        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          @for (placed of groupFieldsFor(group); track placed.instanceKey) {
-            @switch (placed.field.kind) {
-              @case ('headword') {
-                <h2 class="font-serif text-2xl font-semibold text-[#2b2621] dark:text-[#e8e2d9]">{{ placed.field.entry.headword }}</h2>
-              }
-              @case ('homographNumber') {
-                <sup class="text-[0.7em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.homographNumber }}</sup>
-              }
-              @case ('partOfSpeech') {
-                <span class="text-sm italic text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.partOfSpeech }}</span>
-              }
-              @default {
-                <ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" />
+        <div [class.pl-4]="isInflectionGroup(group)">
+          <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            @for (placed of nonInflectionFieldsFor(group); track placed.instanceKey) {
+              @switch (placed.field.kind) {
+                @case ('headword') {
+                  <h2 class="font-serif text-2xl font-semibold text-[#2b2621] dark:text-[#e8e2d9]">{{ placed.field.entry.headword }}</h2>
+                }
+                @case ('homographNumber') {
+                  <sup class="text-[0.7em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.homographNumber }}</sup>
+                }
+                @case ('partOfSpeech') {
+                  <span class="text-sm italic text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.partOfSpeech }}</span>
+                }
+                @default {
+                  <ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" />
+                }
               }
             }
+          </div>
+          @if (inflectionFieldsFor(group).length) {
+            <div class="mt-1 flex flex-col gap-1">
+              @for (placed of inflectionFieldsFor(group); track placed.instanceKey) {
+                <div><ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" /></div>
+              }
+            </div>
           }
         </div>
       </ng-template>
