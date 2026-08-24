@@ -5,16 +5,31 @@
  */
 export const DICTIONARY_API_URL = 'http://localhost:5000';
 
+/** A language the dictionary sources below can be grouped under. */
+export interface LanguageOption {
+  readonly key: string;
+  readonly label: string;
+  readonly disabled?: boolean;
+}
+
+// German has no dictionary sources wired up yet, so it's listed (for visibility of what's coming)
+// but disabled rather than omitted.
+export const LANGUAGES: readonly LanguageOption[] = [
+  { key: 'en', label: 'En' },
+  { key: 'de', label: 'De', disabled: true },
+];
+
 /** A dictionary source the lookup endpoint can query, keyed by its `sources` query param value. */
 export interface DictionarySourceOption {
   readonly key: string;
   readonly label: string;
+  readonly language: string;
 }
 
-// Only English sources exist today; a language switch (e.g. German) would add more entries here.
+// Only English sources exist today; German entries would go here once that source is available.
 export const DICTIONARY_SOURCES: readonly DictionarySourceOption[] = [
-  { key: 'longman', label: 'Longman' },
-  { key: 'oxford', label: 'Oxford' },
+  { key: 'longman', label: 'Longman', language: 'en' },
+  { key: 'oxford', label: 'Oxford', language: 'en' },
 ];
 
 export interface PhoneticVariant {

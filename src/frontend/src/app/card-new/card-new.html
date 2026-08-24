@@ -1,6 +1,16 @@
-<div
-  class="flex flex-wrap items-center gap-3"
->
+<div class="flex flex-wrap items-center gap-3">
+  <div class="flex flex-col gap-1">
+    <p-select
+      [options]="languages"
+      optionLabel="label"
+      optionValue="key"
+      optionDisabled="disabled"
+      [ngModel]="selectedLanguage()"
+      (ngModelChange)="selectedLanguage.set($event)"
+      class="w-20"
+    />
+  </div>
+
   <div class="flex flex-1 min-w-xl max-w-sm items-center gap-1">
     <p-iconfield class="flex-1">
       <p-inputicon>
@@ -30,7 +40,7 @@
 
   <div class="flex flex-col gap-1">
     <p-select
-      [options]="dictionarySources"
+      [options]="availableSources()"
       optionLabel="label"
       optionValue="key"
       [ngModel]="selectedSources()"
@@ -70,28 +80,41 @@
       <span class="text-xs text-red-500">{{ noteTypeError }}</span>
     }
   </div>
+
+  <button pButton type="button" class="ml-auto" disabled title="Coming soon">
+    <svg data-p-icon="plus" class="size-4"></svg>Add to Anki
+  </button>
 </div>
 
 <section class="mt-6">
   @if (!hasSearched()) {
-    <div class="rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10">
-      <p class="font-serif text-lg text-[#2b2621] dark:text-[#e8e2d9]">Search a word to get started</p>
+    <div class="rounded-2xl ring-1 p-8 text-center dark:ring-white/10">
+      <p class="font-serif text-lg text-[#2b2621] dark:text-[#e8e2d9]">
+        Search a word to get started
+      </p>
       <p class="mt-1 text-sm text-[#6b6156] dark:text-[#a89e91]">
         Definitions from the selected dictionaries will appear here.
       </p>
     </div>
   } @else if (searchResource.isLoading()) {
-    <div class="rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10">
+    <div class="rounded-2xl ring-1 p-8 text-center dark:ring-white/10">
       <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Looking up "{{ submittedTerm() }}"…</p>
     </div>
   } @else if (searchError(); as err) {
-    <div class="rounded-2xl bg-red-50 p-6 text-sm text-red-600 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-900">
+    <div
+      class="rounded-2xl bg-red-50 p-6 text-sm text-red-600 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-900"
+    >
       {{ err }}
     </div>
   } @else {
     <div class="flex flex-col gap-4 lg:flex-row">
-      <aside class="flex w-full flex-col gap-3 rounded-2xl bg-[#FAF8F4] p-4 ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:w-40 lg:shrink-0">
-        <span class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Sources</span>
+      <aside
+        class="flex w-full flex-col gap-3 rounded-2xl ring-1 p-4 dark:ring-white/10 lg:w-40 lg:shrink-0"
+      >
+        <span
+          class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]"
+          >Sources</span
+        >
         @if (resultSources().length) {
           <div class="flex flex-col gap-2.5">
             @for (source of resultSources(); track source) {
@@ -102,7 +125,11 @@
                   (ngModelChange)="toggleResultSource(source, $event)"
                   [inputId]="'source-' + source"
                 />
-                <label [for]="'source-' + source" class="text-sm text-[#2b2621] dark:text-[#e8e2d9]">{{ source }}</label>
+                <label
+                  [for]="'source-' + source"
+                  class="text-sm text-[#2b2621] dark:text-[#e8e2d9]"
+                  >{{ source }}</label
+                >
               </div>
             }
           </div>
@@ -111,7 +138,9 @@
         }
       </aside>
 
-      <div class="flex flex-1 flex-col rounded-2xl bg-[#FAF8F4] ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:min-h-80">
+      <div
+        class="flex flex-1 flex-col rounded-2xl lg:min-h-80"
+      >
         <p-tabs [value]="activeTab()" (valueChange)="activeTab.set($any($event))">
           <p-tablist>
             <p-tab value="front">Front</p-tab>
@@ -131,7 +160,9 @@
       <ng-template #resultsColumn let-side="side">
         <div class="flex flex-col gap-4 p-4">
           <div class="flex items-center justify-between gap-3">
-            <h2 class="font-serif text-xl text-[#2b2621] dark:text-[#e8e2d9]">{{ submittedTerm() }}</h2>
+            <h2 class="font-serif text-xl text-[#2b2621] dark:text-[#e8e2d9]">
+              {{ submittedTerm() }}
+            </h2>
             @if (visibleResultSources().length) {
               <button pButton text size="small" type="button" (click)="toggleExpandAll(side)">
                 {{ isAllExpanded(side) ? 'Collapse all' : 'Expand all' }}
@@ -157,10 +188,15 @@
                     >
                       <ng-template #node let-node>
                         <span class="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 py-0.5">
-                          <span class="font-serif text-[15px] font-semibold text-[#2b2621] dark:text-[#e8e2d9]">
+                          <span
+                            class="font-serif text-[15px] font-semibold text-[#2b2621] dark:text-[#e8e2d9]"
+                          >
                             {{ node.data.headword }}
                             @if (node.data?.homographNumber) {
-                              <sup class="ml-0.5 text-[0.65em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ node.data.homographNumber }}</sup>
+                              <sup
+                                class="ml-0.5 text-[0.65em] font-normal text-[#6b6156] dark:text-[#a89e91]"
+                                >{{ node.data.homographNumber }}</sup
+                              >
                             }
                           </span>
 
@@ -191,12 +227,17 @@
                             <span class="inline-flex items-center gap-1.5">
                               @for (label of node.data.frequencyLabels; track label.code) {
                                 @if (isFrequencyDots(label.code)) {
-                                  <span class="text-xs tracking-tighter text-[#b3453f] dark:text-[#e08a86]" [title]="label.description">{{ label.code }}</span>
+                                  <span
+                                    class="text-xs tracking-tighter text-[#b3453f] dark:text-[#e08a86]"
+                                    [title]="label.description"
+                                    >{{ label.code }}</span
+                                  >
                                 } @else {
                                   <span
                                     class="rounded border border-[#b3453f]/40 px-1 text-[10px] font-bold uppercase text-[#b3453f] dark:border-[#e08a86]/40 dark:text-[#e08a86]"
                                     [title]="label.description"
-                                  >{{ label.code }}</span>
+                                    >{{ label.code }}</span
+                                  >
                                 }
                               }
                             </span>
@@ -205,19 +246,30 @@
                           @if (node.data?.isKeyword || node.data?.keywordLevel) {
                             <span class="inline-flex items-center gap-1">
                               @if (node.data?.isKeyword) {
-                                <svg data-p-icon="star-fill" class="size-3 text-amber-500 dark:text-amber-400" title="Oxford 3000/5000 keyword"></svg>
+                                <svg
+                                  data-p-icon="star-fill"
+                                  class="size-3 text-amber-500 dark:text-amber-400"
+                                  title="Oxford 3000/5000 keyword"
+                                ></svg>
                               }
                               @if (node.data.keywordLevel; as level) {
                                 <span
-                                  [class]="'rounded px-1 text-[10px] font-bold uppercase text-white ' + cefrLevelClasses(level)"
+                                  [class]="
+                                    'rounded px-1 text-[10px] font-bold uppercase text-white ' +
+                                    cefrLevelClasses(level)
+                                  "
                                   title="CEFR level"
-                                >{{ level }}</span>
+                                  >{{ level }}</span
+                                >
                               }
                             </span>
                           }
 
                           @if (node.data?.partOfSpeech) {
-                            <span class="text-xs font-normal italic text-[#6b6156] dark:text-[#a89e91]">{{ node.data.partOfSpeech }}</span>
+                            <span
+                              class="text-xs font-normal italic text-[#6b6156] dark:text-[#a89e91]"
+                              >{{ node.data.partOfSpeech }}</span
+                            >
                           }
                         </span>
                       </ng-template>
@@ -227,13 +279,31 @@
               }
             </p-accordion>
           } @else {
-            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Select at least one source in the left column to see results here.</p>
+            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">
+              Select at least one source in the left column to see results here.
+            </p>
           }
         </div>
       </ng-template>
 
-      <div class="flex w-full items-center justify-center rounded-2xl bg-[#FAF8F4] p-8 text-center ring-1 ring-black/5 dark:bg-[#2A2521] dark:ring-white/10 lg:w-96 lg:shrink-0">
-        <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Card preview — coming soon</p>
+      <div
+        class="flex w-full flex-col gap-3 rounded-2xl ring-1 p-4 dark:ring-white/10 lg:w-96 lg:shrink-0"
+      >
+        <span
+          class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]"
+          >Card preview</span
+        >
+
+        <p-tabs [value]="previewTab()" (valueChange)="previewTab.set($any($event))">
+          <p-tablist>
+            <p-tab value="front">Front</p-tab>
+            <p-tab value="back">Back</p-tab>
+          </p-tablist>
+          <p-tabpanels>
+            <p-tabpanel value="front" />
+            <p-tabpanel value="back" />
+          </p-tabpanels>
+        </p-tabs>
       </div>
     </div>
   }

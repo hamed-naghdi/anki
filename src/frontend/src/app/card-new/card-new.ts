@@ -23,6 +23,7 @@ import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { Tree } from 'primeng/tree';
 import { TreeSelect } from 'primeng/treeselect';
 import type { TreeNode } from 'primeng/api';
+import { Plus } from '@primeicons/angular/plus';
 import { Search } from '@primeicons/angular/search';
 import { StarFill } from '@primeicons/angular/star-fill';
 import { Times } from '@primeicons/angular/times';
@@ -34,6 +35,8 @@ import {
   DictionaryEntry,
   DictionarySearchResult,
   DictionarySourceOption,
+  LANGUAGES,
+  LanguageOption,
   Pronunciation,
   dictionaryLookupRequest,
 } from '../core/dictionary-api';
@@ -65,6 +68,7 @@ type CardSide = 'front' | 'back';
     Tree,
     TreeSelect,
     FormsModule,
+    Plus,
     Search,
     StarFill,
     Times,
@@ -79,7 +83,16 @@ export class CardNew {
   protected readonly deckService = inject(DeckService);
   protected readonly noteTypeService = inject(NoteTypeService);
 
-  protected readonly dictionarySources: DictionarySourceOption[] = [...DICTIONARY_SOURCES];
+  protected readonly languages: LanguageOption[] = [...LANGUAGES];
+
+  protected readonly selectedLanguage = signal('en');
+
+  // Only the sources belonging to whichever language is picked - today that's always both English
+  // dictionaries, but this is what lets a future German source (once one exists) not show up while
+  // English is selected, and vice versa.
+  protected readonly availableSources = computed((): DictionarySourceOption[] =>
+    DICTIONARY_SOURCES.filter((source) => source.language === this.selectedLanguage()),
+  );
 
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
@@ -90,7 +103,11 @@ export class CardNew {
   }
 
   searchTerm = signal('');
-  protected readonly selectedSources = signal<string[]>(DICTIONARY_SOURCES.map((source) => source.key));
+
+  // Resets to "everything the current language offers, all checked" whenever the language changes,
+  // but stays writable in between so unchecking a source in the dropdown doesn't get fought by this
+  // signal.
+  protected readonly selectedSources = linkedSignal(() => this.availableSources().map((source) => source.key));
 
   // Separate from searchTerm/selectedSources so a query only fires on Enter - toggling sources in
   // the dropdown must not by itself trigger a new backend request.
@@ -130,6 +147,11 @@ export class CardNew {
   }
 
   protected readonly activeTab = signal<CardSide>('front');
+
+  // Which side of the card preview is showing. Independent from activeTab above (a person can be
+  // editing the Back selection in the results column while still previewing the Front) - later this
+  // will render whatever's checked on the matching side in the results column.
+  protected readonly previewTab = signal<CardSide>('front');
 
   // Which of the result accordions are open, tracked per side. Each resets to "everything with a
   // checkbox available, all expanded" on every new fetch, but stays writable in between - and
