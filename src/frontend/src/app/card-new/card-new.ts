@@ -14,19 +14,18 @@ import { httpResource } from '@angular/common/http';
 import { Accordion, AccordionContent, AccordionHeader, AccordionPanel } from 'primeng/accordion';
 import { ButtonDirective } from 'primeng/button';
 import { Checkbox } from 'primeng/checkbox';
-import { Editor } from 'primeng/editor';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Select } from 'primeng/select';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
+import { Textarea } from 'primeng/textarea';
 import { Tree } from 'primeng/tree';
 import type { TreeNodeDropEvent } from 'primeng/tree';
 import { TreeSelect } from 'primeng/treeselect';
 import type { TreeNode } from 'primeng/api';
 import { TreeDragDropService } from 'primeng/api';
-import { Code } from '@primeicons/angular/code';
 import { GripVertical } from '@primeicons/angular/grip-vertical';
 import { Key } from '@primeicons/angular/key';
 import { Plus } from '@primeicons/angular/plus';
@@ -112,20 +111,24 @@ interface EntryFieldGroup {
   label: string;
 }
 
-// A free-form rich-text block the user authors directly, rather than one derived from a dictionary
-// entry - works like any other placed field otherwise (draggable between groups, duplicable,
-// removable), and there can be any number of instances. `viewMode` toggles between the WYSIWYG
-// Quill editor and a raw-HTML textarea, mirroring Anki's own note editor's HTML-source toggle.
+// A free-form rich-text block the user authors directly as raw HTML, rather than one derived from
+// a dictionary entry - works like any other placed field otherwise (draggable between groups,
+// duplicable, removable), and there can be any number of instances, each typed into a plain
+// pTextarea (added as either "Add LTR text" or "Add RTL text" - see addRichTextBlock).
 //
-// `html`/`viewMode` are their OWN signals, not plain values on an object that lives inside
-// orderBySide - editing either only needs to update this one signal, not rebuild the whole order
-// tree. Rebuilding the tree on every keystroke was the original approach, and it replaces the
-// [value] array bound to the reorder p-tree on every keystroke, which tears down and recreates the
-// editor's DOM (and Quill instance) each time, stealing focus after every character typed.
+// `html` is its OWN signal, not a plain value on an object that lives inside orderBySide - editing
+// it only needs to update this one signal, not rebuild the whole order tree. Rebuilding the tree on
+// every keystroke was the original approach, and it replaces the [value] array bound to the reorder
+// p-tree on every keystroke, which tears down and recreates the textarea's DOM each time, stealing
+// focus after every character typed.
 interface RichTextFieldData {
   kind: 'richText';
   html: WritableSignal<string>;
-  viewMode: WritableSignal<'rich' | 'html'>;
+  // Fixed at creation (see addRichTextBlock's two variants), not toggled in place - applied to the
+  // textarea while typing (dir, plus text-align: right for rtl) and to the Card Preview's rendered
+  // HTML, so both read the same direction rather than a plain text-align that only affects the
+  // preview and leaves typing itself feeling backwards.
+  direction: 'rtl' | 'ltr';
 }
 
 // What a placed field's `field` can hold - dictionary-derived data, or a user-authored rich-text
@@ -163,7 +166,6 @@ interface OrderGroupData {
     AccordionPanel,
     ButtonDirective,
     Checkbox,
-    Editor,
     IconField,
     InputIcon,
     InputText,
@@ -175,10 +177,10 @@ interface OrderGroupData {
     TabPanel,
     TabPanels,
     Tabs,
+    Textarea,
     Tree,
     TreeSelect,
     FormsModule,
-    Code,
     GripVertical,
     Key,
     Plus,
@@ -745,7 +747,10 @@ export class CardNew {
     for (const group of existingGroups) {
       const keptChildren = (group.children ?? []).filter((child) => {
         const placed = child.data as PlacedField;
-        if (placed.isCopy) {
+        // Anything not sourced from a results-tree checkbox - a duplicate (isCopy), or a
+        // user-authored rich-text block, which was never in the results tree to begin with - is
+        // untouched by checkbox reconciliation; it's removed only via explicit removeField/removeGroup.
+        if (placed.isCopy || !fieldsByKey.has(placed.instanceKey)) {
           return true;
         }
         const stillChecked = checkedKeys.has(placed.instanceKey);
@@ -891,11 +896,15 @@ export class CardNew {
           return group;
         }
         const copyKey = `${instanceKey}-copy-${this.nextCopyId++}`;
-        // A rich-text field's copy needs its own signals - sharing the source's would mean editing
-        // either instance edits both (they're the same live html()/viewMode() underneath).
+        // A rich-text field's copy needs its own signal - sharing the source's would mean editing
+        // either instance edits both (they're the same live html() underneath).
         const copiedField: PlacedFieldData =
           source.field.kind === 'richText'
-            ? ({ kind: 'richText', html: signal(source.field.html()), viewMode: signal(source.field.viewMode()) } satisfies RichTextFieldData)
+            ? ({
+                kind: 'richText',
+                html: signal(source.field.html()),
+                direction: source.field.direction,
+              } satisfies RichTextFieldData)
             : source.field;
         const copy: TreeNode = { key: copyKey, data: { instanceKey: copyKey, field: copiedField, isCopy: true } satisfies PlacedField };
         const nextChildren = [...children];
@@ -908,11 +917,11 @@ export class CardNew {
   // Adds a brand-new rich-text block in its own new group (not tied to any entry, so it has no
   // sensible default group to join) - the user drags it into an existing group afterwards if they
   // want it alongside other fields. Any number of these can exist side by side.
-  protected addRichTextBlock(side: CardSide): void {
+  protected addRichTextBlock(side: CardSide, direction: 'rtl' | 'ltr'): void {
     const instanceKey = `richtext-${this.nextCopyId++}`;
     const placed: PlacedField = {
       instanceKey,
-      field: { kind: 'richText', html: signal(''), viewMode: signal('rich') } satisfies RichTextFieldData,
+      field: { kind: 'richText', html: signal(''), direction } satisfies RichTextFieldData,
       isCopy: false,
     };
     const group: TreeNode = {
@@ -923,14 +932,10 @@ export class CardNew {
     this.orderBySide[side].update((groups) => [...groups, group]);
   }
 
-  // Both write straight into the field's own signal - no need to touch orderBySide at all, which is
+  // Writes straight into the field's own signal - no need to touch orderBySide at all, which is
   // exactly the point (see the class comment on RichTextFieldData for why that matters for focus).
   protected onRichTextHtmlChange(field: RichTextFieldData, html: string): void {
     field.html.set(html);
-  }
-
-  protected toggleRichTextViewMode(field: RichTextFieldData): void {
-    field.viewMode.update((mode) => (mode === 'rich' ? 'html' : 'rich'));
   }
 
   // Whether the field currently being dragged is a headword and the target group already has a
