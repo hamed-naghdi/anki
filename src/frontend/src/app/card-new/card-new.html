@@ -86,35 +86,144 @@
   </button>
 </div>
 
+<!--
+  Renders a single field's value (no "Label:" prefix) - shared by the results tree's leaf rows and
+  the card preview (keyword/frequency go directly under the headword line; pronunciations go in the
+  right-hand column; inflection forms render inside their group's block), so all three stay in sync
+  automatically.
+-->
+<ng-template #fieldChip let-field="field">
+  @switch (field.kind) {
+    @case ('headword') {
+      <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ field.entry.headword }}</span>
+    }
+    @case ('partOfSpeech') {
+      <span class="italic text-[#2b2621] dark:text-[#e8e2d9]">{{ field.entry.partOfSpeech }}</span>
+    }
+    @case ('homographNumber') {
+      <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ field.entry.homographNumber }}</span>
+    }
+    @case ('pronunciation-british') {
+      @if (britishPhonetic(field.entry); as uk) {
+        <span class="inline-flex items-center gap-1.5 text-sm text-[#6b6156] dark:text-[#a89e91]">
+          {{ formatIpa(uk.ipa) }}
+          @if (uk.audioUrl; as ukAudio) {
+            <button
+              type="button"
+              class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+              title="Play British pronunciation"
+              (click)="playAudio(ukAudio, $event)"
+            >
+              <svg data-p-icon="volume-up" class="size-3 text-red-600 dark:text-red-400"></svg>UK
+            </button>
+          }
+        </span>
+      }
+    }
+    @case ('pronunciation-american') {
+      @if (americanPhonetic(field.entry); as us) {
+        <span class="inline-flex items-center gap-1.5 text-sm text-[#6b6156] dark:text-[#a89e91]">
+          {{ formatIpa(us.ipa) }}
+          @if (us.audioUrl; as usAudio) {
+            <button
+              type="button"
+              class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+              title="Play American pronunciation"
+              (click)="playAudio(usAudio, $event)"
+            >
+              <svg data-p-icon="volume-up" class="size-3 text-blue-600 dark:text-blue-400"></svg>US
+            </button>
+          }
+        </span>
+      }
+    }
+    @case ('keyword') {
+      <span class="inline-flex items-center gap-1.5">
+        @if (field.entry.isKeyword) {
+          <svg data-p-icon="key" class="size-3 text-amber-500 dark:text-amber-400" title="Oxford 3000/5000 keyword"></svg>
+        }
+        @if (field.entry.keywordLevel; as level) {
+          <span
+            [class]="'rounded px-1 text-[10px] font-bold uppercase text-white ' + cefrLevelClasses(level)"
+            title="CEFR level"
+            >{{ level }}</span
+          >
+        }
+      </span>
+    }
+    @case ('frequencyLabels') {
+      <span class="inline-flex items-center gap-1.5">
+        @for (label of field.entry.frequencyLabels; track label.code) {
+          @if (isFrequencyDots(label.code)) {
+            <span class="text-xs tracking-tighter text-[#b3453f] dark:text-[#e08a86]" [title]="label.description">{{ label.code }}</span>
+          } @else {
+            <span
+              class="rounded border border-[#b3453f]/40 px-1 text-[10px] font-bold uppercase text-[#b3453f] dark:border-[#e08a86]/40 dark:text-[#e08a86]"
+              [title]="label.description"
+              >{{ label.code }}</span
+            >
+          }
+        }
+      </span>
+    }
+    @case ('inflectionForm') {
+      @if (inflectionFormFor(field); as form) {
+        <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ form.form }}</span>
+          @if (form.pronunciation?.british?.[0]; as uk) {
+            <span class="inline-flex items-center gap-1 text-xs text-[#6b6156] dark:text-[#a89e91]">
+              {{ formatIpa(uk.ipa) }}
+              @if (uk.audioUrl; as ukAudio) {
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                  (click)="playAudio(ukAudio, $event)"
+                >
+                  <svg data-p-icon="volume-up" class="size-3 text-red-600 dark:text-red-400"></svg>UK
+                </button>
+              }
+            </span>
+          }
+          @if (form.pronunciation?.american?.[0]; as us) {
+            <span class="inline-flex items-center gap-1 text-xs text-[#6b6156] dark:text-[#a89e91]">
+              {{ formatIpa(us.ipa) }}
+              @if (us.audioUrl; as usAudio) {
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                  (click)="playAudio(usAudio, $event)"
+                >
+                  <svg data-p-icon="volume-up" class="size-3 text-blue-600 dark:text-blue-400"></svg>US
+                </button>
+              }
+            </span>
+          }
+        </span>
+      }
+    }
+  }
+</ng-template>
+
 <section class="mt-6">
   @if (!hasSearched()) {
-    <div class="rounded-2xl ring-1 p-8 text-center dark:ring-white/10">
-      <p class="font-serif text-lg text-[#2b2621] dark:text-[#e8e2d9]">
-        Search a word to get started
-      </p>
+    <div class="rounded-2xl border border-surface-200 p-8 text-center dark:border-surface-700">
+      <p class="font-serif text-lg text-[#2b2621] dark:text-[#e8e2d9]">Search a word to get started</p>
       <p class="mt-1 text-sm text-[#6b6156] dark:text-[#a89e91]">
         Definitions from the selected dictionaries will appear here.
       </p>
     </div>
   } @else if (searchResource.isLoading()) {
-    <div class="rounded-2xl ring-1 p-8 text-center dark:ring-white/10">
+    <div class="rounded-2xl border border-surface-200 p-8 text-center dark:border-surface-700">
       <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Looking up "{{ submittedTerm() }}"…</p>
     </div>
   } @else if (searchError(); as err) {
-    <div
-      class="rounded-2xl bg-red-50 p-6 text-sm text-red-600 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-900"
-    >
+    <div class="rounded-2xl bg-red-50 p-6 text-sm text-red-600 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-900">
       {{ err }}
     </div>
   } @else {
     <div class="flex flex-col gap-4 lg:flex-row">
-      <aside
-        class="flex w-full flex-col gap-3 rounded-2xl ring-1 p-4 dark:ring-white/10 lg:w-40 lg:shrink-0"
-      >
-        <span
-          class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]"
-          >Sources</span
-        >
+      <aside class="flex w-full flex-col gap-3 rounded-2xl border border-surface-200 p-4 dark:border-surface-700 lg:w-40 lg:shrink-0">
+        <span class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Sources</span>
         @if (resultSources().length) {
           <div class="flex flex-col gap-2.5">
             @for (source of resultSources(); track source) {
@@ -125,11 +234,7 @@
                   (ngModelChange)="toggleResultSource(source, $event)"
                   [inputId]="'source-' + source"
                 />
-                <label
-                  [for]="'source-' + source"
-                  class="text-sm text-[#2b2621] dark:text-[#e8e2d9]"
-                  >{{ source }}</label
-                >
+                <label [for]="'source-' + source" class="text-sm text-[#2b2621] dark:text-[#e8e2d9]">{{ source }}</label>
               </div>
             }
           </div>
@@ -138,9 +243,7 @@
         }
       </aside>
 
-      <div
-        class="flex flex-1 flex-col rounded-2xl lg:min-h-80"
-      >
+      <div class="flex flex-1 flex-col rounded-2xl border border-surface-200 dark:border-surface-700">
         <p-tabs [value]="activeTab()" (valueChange)="activeTab.set($any($event))">
           <p-tablist>
             <p-tab value="front">Front</p-tab>
@@ -148,21 +251,25 @@
           </p-tablist>
           <p-tabpanels>
             <p-tabpanel value="front">
-              <ng-container *ngTemplateOutlet="resultsColumn; context: { side: 'front' }" />
+              <div class="flex flex-col gap-4 xl:flex-row">
+                <ng-container *ngTemplateOutlet="resultsColumn; context: { side: 'front' }" />
+                <ng-container *ngTemplateOutlet="previewColumn; context: { side: 'front' }" />
+              </div>
             </p-tabpanel>
             <p-tabpanel value="back">
-              <ng-container *ngTemplateOutlet="resultsColumn; context: { side: 'back' }" />
+              <div class="flex flex-col gap-4 xl:flex-row">
+                <ng-container *ngTemplateOutlet="resultsColumn; context: { side: 'back' }" />
+                <ng-container *ngTemplateOutlet="previewColumn; context: { side: 'back' }" />
+              </div>
             </p-tabpanel>
           </p-tabpanels>
         </p-tabs>
       </div>
 
       <ng-template #resultsColumn let-side="side">
-        <div class="flex flex-col gap-4 p-4">
+        <div class="flex flex-1 flex-col gap-4 p-4">
           <div class="flex items-center justify-between gap-3">
-            <h2 class="font-serif text-xl text-[#2b2621] dark:text-[#e8e2d9]">
-              {{ submittedTerm() }}
-            </h2>
+            <h2 class="font-serif text-xl text-[#2b2621] dark:text-[#e8e2d9]">{{ submittedTerm() }}</h2>
             @if (visibleResultSources().length) {
               <button pButton text size="small" type="button" (click)="toggleExpandAll(side)">
                 {{ isAllExpanded(side) ? 'Collapse all' : 'Expand all' }}
@@ -187,91 +294,81 @@
                       (selectionChange)="setSelection(side, $any($event))"
                     >
                       <ng-template #node let-node>
-                        <span class="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 py-0.5">
-                          <span
-                            class="font-serif text-[15px] font-semibold text-[#2b2621] dark:text-[#e8e2d9]"
-                          >
-                            {{ node.data.headword }}
-                            @if (node.data?.homographNumber) {
-                              <sup
-                                class="ml-0.5 text-[0.65em] font-normal text-[#6b6156] dark:text-[#a89e91]"
-                                >{{ node.data.homographNumber }}</sup
-                              >
-                            }
+                        @if (node.data?.isGroup) {
+                          <span class="text-sm font-medium text-[#6b6156] dark:text-[#a89e91]">{{ node.label }}</span>
+                        } @else if (node.data?.kind; as kind) {
+                          <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 text-sm">
+                            <span class="font-medium text-[#6b6156] dark:text-[#a89e91]">{{ node.data.label }}:</span>
+                            <ng-container *ngTemplateOutlet="fieldChip; context: { field: node.data }" />
                           </span>
+                        } @else {
+                          <span class="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 py-0.5">
+                            <span class="font-serif text-[15px] font-semibold text-[#2b2621] dark:text-[#e8e2d9]">
+                              {{ node.data.headword }}
+                              @if (node.data?.homographNumber) {
+                                <sup class="ml-0.5 text-[0.65em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ node.data.homographNumber }}</sup>
+                              }
+                            </span>
 
-                          @if (primaryPronunciation(node.data); as pron) {
-                            @if (pron.british[0]?.audioUrl; as ukAudio) {
-                              <button
-                                type="button"
-                                class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
-                                title="British pronunciation"
-                                (click)="playAudio(ukAudio, $event)"
-                              >
-                                <svg data-p-icon="volume-up" class="size-3"></svg>UK
-                              </button>
+                            @if (primaryPronunciation(node.data); as pron) {
+                              @if (pron.british[0]?.audioUrl; as ukAudio) {
+                                <button
+                                  type="button"
+                                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                                  title="British pronunciation"
+                                  (click)="playAudio(ukAudio, $event)"
+                                >
+                                  <svg data-p-icon="volume-up" class="size-3 text-red-600 dark:text-red-400"></svg>UK
+                                </button>
+                              }
+                              @if (pron.american[0]?.audioUrl; as usAudio) {
+                                <button
+                                  type="button"
+                                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                                  title="American pronunciation"
+                                  (click)="playAudio(usAudio, $event)"
+                                >
+                                  <svg data-p-icon="volume-up" class="size-3 text-blue-600 dark:text-blue-400"></svg>US
+                                </button>
+                              }
                             }
-                            @if (pron.american[0]?.audioUrl; as usAudio) {
-                              <button
-                                type="button"
-                                class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
-                                title="American pronunciation"
-                                (click)="playAudio(usAudio, $event)"
-                              >
-                                <svg data-p-icon="volume-up" class="size-3"></svg>US
-                              </button>
-                            }
-                          }
 
-                          @if (node.data?.frequencyLabels?.length) {
-                            <span class="inline-flex items-center gap-1.5">
-                              @for (label of node.data.frequencyLabels; track label.code) {
-                                @if (isFrequencyDots(label.code)) {
+                            @if (node.data?.frequencyLabels?.length) {
+                              <span class="inline-flex items-center gap-1.5">
+                                @for (label of node.data.frequencyLabels; track label.code) {
+                                  @if (isFrequencyDots(label.code)) {
+                                    <span class="text-xs tracking-tighter text-[#b3453f] dark:text-[#e08a86]" [title]="label.description">{{ label.code }}</span>
+                                  } @else {
+                                    <span
+                                      class="rounded border border-[#b3453f]/40 px-1 text-[10px] font-bold uppercase text-[#b3453f] dark:border-[#e08a86]/40 dark:text-[#e08a86]"
+                                      [title]="label.description"
+                                      >{{ label.code }}</span
+                                    >
+                                  }
+                                }
+                              </span>
+                            }
+
+                            @if (node.data?.isKeyword || node.data?.keywordLevel) {
+                              <span class="inline-flex items-center gap-1">
+                                @if (node.data?.isKeyword) {
+                                  <svg data-p-icon="key" class="size-3 text-amber-500 dark:text-amber-400" title="Oxford 3000/5000 keyword"></svg>
+                                }
+                                @if (node.data.keywordLevel; as level) {
                                   <span
-                                    class="text-xs tracking-tighter text-[#b3453f] dark:text-[#e08a86]"
-                                    [title]="label.description"
-                                    >{{ label.code }}</span
-                                  >
-                                } @else {
-                                  <span
-                                    class="rounded border border-[#b3453f]/40 px-1 text-[10px] font-bold uppercase text-[#b3453f] dark:border-[#e08a86]/40 dark:text-[#e08a86]"
-                                    [title]="label.description"
-                                    >{{ label.code }}</span
+                                    [class]="'rounded px-1 text-[10px] font-bold uppercase text-white ' + cefrLevelClasses(level)"
+                                    title="CEFR level"
+                                    >{{ level }}</span
                                   >
                                 }
-                              }
-                            </span>
-                          }
+                              </span>
+                            }
 
-                          @if (node.data?.isKeyword || node.data?.keywordLevel) {
-                            <span class="inline-flex items-center gap-1">
-                              @if (node.data?.isKeyword) {
-                                <svg
-                                  data-p-icon="key"
-                                  class="size-3 text-amber-500 dark:text-amber-400"
-                                  title="Oxford 3000/5000 keyword"
-                                ></svg>
-                              }
-                              @if (node.data.keywordLevel; as level) {
-                                <span
-                                  [class]="
-                                    'rounded px-1 text-[10px] font-bold uppercase text-white ' +
-                                    cefrLevelClasses(level)
-                                  "
-                                  title="CEFR level"
-                                  >{{ level }}</span
-                                >
-                              }
-                            </span>
-                          }
-
-                          @if (node.data?.partOfSpeech) {
-                            <span
-                              class="text-xs font-normal italic text-[#6b6156] dark:text-[#a89e91]"
-                              >{{ node.data.partOfSpeech }}</span
-                            >
-                          }
-                        </span>
+                            @if (node.data?.partOfSpeech) {
+                              <span class="text-xs font-normal italic text-[#6b6156] dark:text-[#a89e91]">{{ node.data.partOfSpeech }}</span>
+                            }
+                          </span>
+                        }
                       </ng-template>
                     </p-tree>
                   </p-accordion-content>
@@ -279,32 +376,127 @@
               }
             </p-accordion>
           } @else {
-            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">
-              Select at least one source in the left column to see results here.
-            </p>
+            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Select at least one source in the left column to see results here.</p>
           }
         </div>
       </ng-template>
 
-      <div
-        class="flex w-full flex-col gap-3 rounded-2xl ring-1 p-4 dark:ring-white/10 lg:w-96 lg:shrink-0"
-      >
-        <span
-          class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]"
-          >Card preview</span
-        >
+      <!--
+        A group's items, in whatever order the user dragged them into - not a fixed slot layout, so
+        any mix of fields (from any entry or dictionary) can sit in one group. Headword/homograph/
+        part of speech still get their own typography; everything else renders via fieldChip.
+      -->
+      <ng-template #groupContent let-group="group">
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          @for (placed of groupFieldsFor(group); track placed.instanceKey) {
+            @switch (placed.field.kind) {
+              @case ('headword') {
+                <h2 class="font-serif text-2xl font-semibold text-[#2b2621] dark:text-[#e8e2d9]">{{ placed.field.entry.headword }}</h2>
+              }
+              @case ('homographNumber') {
+                <sup class="text-[0.7em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.homographNumber }}</sup>
+              }
+              @case ('partOfSpeech') {
+                <span class="text-sm italic text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.partOfSpeech }}</span>
+              }
+              @default {
+                <ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" />
+              }
+            }
+          }
+        </div>
+      </ng-template>
 
-        <p-tabs [value]="previewTab()" (valueChange)="previewTab.set($any($event))">
-          <p-tablist>
-            <p-tab value="front">Front</p-tab>
-            <p-tab value="back">Back</p-tab>
-          </p-tablist>
-          <p-tabpanels>
-            <p-tabpanel value="front" />
-            <p-tabpanel value="back" />
-          </p-tabpanels>
-        </p-tabs>
-      </div>
+      <ng-template #previewColumn let-side="side">
+        <div class="flex flex-1 flex-col gap-4 border-t border-surface-200 p-4 dark:border-surface-700 xl:border-t-0 xl:border-l">
+          <span class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Card preview</span>
+
+          @if (orderGroupsFor(side).length) {
+            <div class="flex flex-col gap-3">
+              @for (group of orderGroupsFor(side); track group.key) {
+                <ng-container *ngTemplateOutlet="groupContent; context: { group }" />
+              }
+            </div>
+          } @else {
+            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Check fields in the results column to preview them here.</p>
+          }
+
+          <span class="mt-2 text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">
+            {{ side === 'front' ? 'Front' : 'Back' }} items · drag groups or fields to reorder, drag a field onto another group to move it there
+          </span>
+
+          @if (orderGroupsFor(side).length) {
+            <p-tree
+              [value]="orderGroupsFor(side)"
+              [draggableNodes]="true"
+              [droppableNodes]="true"
+              [validateDrop]="true"
+              (onNodeDrop)="onOrderTreeDrop(side, $event)"
+            >
+              <!--
+                PrimeNG's p-tree recurses this same #node template for every level, so this one
+                template covers both a group (has children - rendered as a header row) and a field
+                inside it (a leaf - rendered as a value row); it's what lets a single tree give us
+                group reordering, field reordering, and dragging a field into another group all at
+                once, natively.
+              -->
+              <ng-template #node let-node>
+                @if (node.children) {
+                  <div class="flex w-full items-center justify-between gap-2">
+                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2b2621] dark:text-[#e8e2d9]">
+                      <svg data-p-icon="grip-vertical" class="size-3.5 shrink-0 cursor-grab text-[#6b6156] dark:text-[#a89e91]"></svg>
+                      {{ groupLabelFor(side, node) }}
+                    </span>
+                    <button
+                      type="button"
+                      class="shrink-0 rounded p-1 text-[#6b6156] hover:bg-black/10 dark:text-[#a89e91] dark:hover:bg-white/20"
+                      title="Remove group"
+                      (click)="removeGroup(side, node)"
+                    >
+                      <svg data-p-icon="times" class="size-3"></svg>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="flex w-full items-center justify-between gap-2 text-sm">
+                    <span class="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-[#2b2621] dark:text-[#e8e2d9]">
+                      <svg data-p-icon="grip-vertical" class="size-3.5 shrink-0 cursor-grab text-[#6b6156] dark:text-[#a89e91]"></svg>
+                      {{ fieldPathLabel(node.data.field) }}
+                      @if (fieldValueText(node.data.field); as value) {
+                        <span class="truncate text-[#6b6156] dark:text-[#a89e91]"> — {{ value }}</span>
+                      }
+                      @if (node.data.isCopy) {
+                        <span class="ml-1 shrink-0 rounded bg-black/10 px-1 text-[10px] dark:bg-white/10">copy</span>
+                      }
+                    </span>
+                    <span class="flex shrink-0 items-center gap-1">
+                      @if (node.data.field.kind !== 'headword') {
+                        <button
+                          type="button"
+                          class="shrink-0 rounded p-1 text-[#6b6156] hover:bg-black/10 dark:text-[#a89e91] dark:hover:bg-white/20"
+                          title="Duplicate"
+                          (click)="duplicateField(side, node.data.instanceKey)"
+                        >
+                          <svg data-p-icon="plus" class="size-3"></svg>
+                        </button>
+                      }
+                      <button
+                        type="button"
+                        class="shrink-0 rounded p-1 text-[#6b6156] hover:bg-black/10 dark:text-[#a89e91] dark:hover:bg-white/20"
+                        title="Remove"
+                        (click)="removeField(side, node.data.instanceKey)"
+                      >
+                        <svg data-p-icon="times" class="size-3"></svg>
+                      </button>
+                    </span>
+                  </div>
+                }
+              </ng-template>
+            </p-tree>
+          } @else {
+            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Nothing selected yet.</p>
+          }
+        </div>
+      </ng-template>
     </div>
   }
 </section>
