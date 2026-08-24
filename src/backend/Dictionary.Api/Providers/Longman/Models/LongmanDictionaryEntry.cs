@@ -4,6 +4,8 @@ namespace Dictionary.Api.Providers.Longman.Models;
 
 public sealed class LongmanDictionaryEntry : IDictionaryEntry
 {
+    public required string Headword { get; init; }
+
     public string? PartOfSpeech { get; init; }
 
     /// <summary>Longman's superscript homograph number (e.g. the "1" in "free¹"), distinguishing this entry from other same-spelled headwords on the page. Null when the page doesn't print one.</summary>

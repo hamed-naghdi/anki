@@ -8,6 +8,9 @@ namespace Dictionary.Api.Models;
 /// </summary>
 public interface IDictionaryEntry
 {
+    /// <summary>The actual headword this entry is for, as the source printed it - can differ from what was searched (e.g. a multi-word search with no entry of its own, where the source's search fell back to a related single word instead).</summary>
+    string Headword { get; }
+
     string? PartOfSpeech { get; }
     string? Grammar { get; }
     IReadOnlyList<Pronunciation> Pronunciations { get; }

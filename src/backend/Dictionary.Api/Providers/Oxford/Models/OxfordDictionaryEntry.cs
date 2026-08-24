@@ -4,6 +4,8 @@ namespace Dictionary.Api.Providers.Oxford.Models;
 
 public sealed class OxfordDictionaryEntry : IDictionaryEntry
 {
+    public required string Headword { get; init; }
+
     public string? PartOfSpeech { get; init; }
     public string? Grammar { get; init; }
     public required IReadOnlyList<Pronunciation> Pronunciations { get; init; }

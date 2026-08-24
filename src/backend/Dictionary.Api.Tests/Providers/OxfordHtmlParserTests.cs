@@ -24,6 +24,7 @@ public class OxfordHtmlParserTests
         Assert.NotEmpty(result.Entries);
 
         var entry = result.Entries[0];
+        Assert.Equal("curiosity", entry.Headword);
         Assert.Equal("noun", entry.PartOfSpeech);
         Assert.True(entry.IsKeyword);
         Assert.Equal("c1", entry.KeywordLevel);

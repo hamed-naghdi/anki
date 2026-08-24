@@ -1,4 +1,14 @@
-import { Component, computed, inject, linkedSignal, signal, WritableSignal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  linkedSignal,
+  signal,
+  viewChild,
+  WritableSignal,
+} from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { httpResource } from '@angular/common/http';
 import { Accordion, AccordionContent, AccordionHeader, AccordionPanel } from 'primeng/accordion';
@@ -14,6 +24,7 @@ import { Tree } from 'primeng/tree';
 import { TreeSelect } from 'primeng/treeselect';
 import type { TreeNode } from 'primeng/api';
 import { Search } from '@primeicons/angular/search';
+import { StarFill } from '@primeicons/angular/star-fill';
 import { Times } from '@primeicons/angular/times';
 import { VolumeUp } from '@primeicons/angular/volume-up';
 import { DeckService } from '../core/deck.service';
@@ -55,6 +66,7 @@ type CardSide = 'front' | 'back';
     TreeSelect,
     FormsModule,
     Search,
+    StarFill,
     Times,
     VolumeUp,
   ],
@@ -68,6 +80,14 @@ export class CardNew {
   protected readonly noteTypeService = inject(NoteTypeService);
 
   protected readonly dictionarySources: DictionarySourceOption[] = [...DICTIONARY_SOURCES];
+
+  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
+
+  constructor() {
+    // Landing on this page is always to search for a word, so the box should be ready to type
+    // into immediately - no click required.
+    afterNextRender(() => this.searchInput()?.nativeElement.focus());
+  }
 
   searchTerm = signal('');
   protected readonly selectedSources = signal<string[]>(DICTIONARY_SOURCES.map((source) => source.key));
@@ -150,8 +170,12 @@ export class CardNew {
   // Longman) - the headword and its part of speech are all a node carries for now; the fields
   // within an entry will become its children once field-level checkboxes exist. `data` carries the
   // entry itself so the node template can style the word and part of speech differently.
+  //
+  // The label uses entry.headword, NOT the searched term - a source can fall back to a related
+  // word when the exact search has no entry of its own (e.g. Oxford has no "walk free" entry, so
+  // it lands on "free" instead), and labelling that result with the search text would misrepresent
+  // what the entry - and its audio/pronunciation - actually are.
   private readonly treeNodesBySource = computed(() => {
-    const word = this.submittedTerm();
     const nodesBySource = new Map<string, TreeNode[]>();
 
     for (const result of this.sourceResults()) {
@@ -159,7 +183,7 @@ export class CardNew {
         result.source,
         result.entries.map((entry, index) => ({
           key: `${result.source}-${index}`,
-          label: entry.partOfSpeech ? `${word} (${entry.partOfSpeech})` : word,
+          label: entry.partOfSpeech ? `${entry.headword} (${entry.partOfSpeech})` : entry.headword,
           data: entry,
         })),
       );
@@ -183,6 +207,19 @@ export class CardNew {
   // ("S1"/"W1") - distinguished here since the two render with very different styling.
   protected isFrequencyDots(code: string): boolean {
     return code.includes('●') || code.includes('○');
+  }
+
+  // Oxford's CEFR levels (a1/a2/b1/b2/c1/c2) group into three broad bands - color the level badge
+  // by band, from beginner (green) to advanced (violet), rather than a distinct shade per level.
+  protected cefrLevelClasses(level: string): string {
+    switch (level.charAt(0).toLowerCase()) {
+      case 'a':
+        return 'bg-emerald-600/90 dark:bg-emerald-500/80';
+      case 'b':
+        return 'bg-sky-600/90 dark:bg-sky-500/80';
+      default:
+        return 'bg-violet-600/90 dark:bg-violet-500/80';
+    }
   }
 
   protected playAudio(url: string | null | undefined, event: Event): void {
@@ -218,6 +255,9 @@ export class CardNew {
   protected onSearch(): void {
     this.submittedTerm.set(this.searchTerm().trim());
     this.submittedSources.set(this.selectedSources());
+    // Results show submittedTerm(), not searchTerm(), so clearing the box here just leaves it
+    // ready for the next word - it doesn't affect what's currently on screen.
+    this.searchTerm.set('');
   }
 
   protected onClearSearch(): void {

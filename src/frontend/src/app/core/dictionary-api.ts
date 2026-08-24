@@ -61,13 +61,16 @@ export interface UsageLabel {
 }
 
 /**
- * Common shape every provider's entry serializes to. `homographNumber` and `frequencyLabels` are
- * Longman-only extras the backend happens to still send on this shared shape (other providers
- * just omit them), kept here rather than on a separate Longman type since the tree node template
- * renders sources generically and reads them defensively.
+ * Common shape every provider's entry serializes to. `homographNumber`/`frequencyLabels` (Longman)
+ * and `isKeyword`/`keywordLevel` (Oxford) are provider-only extras the backend happens to still
+ * send on this shared shape (other providers just omit them), kept here rather than on separate
+ * per-provider types since the tree node template renders sources generically and reads them
+ * defensively.
  */
 export interface DictionaryEntry {
   provider: string;
+  /** The actual headword this entry is for, as the source printed it - can differ from the searched term (e.g. a multi-word search with no entry of its own, where the source fell back to a related single word). */
+  headword: string;
   partOfSpeech: string | null;
   grammar: string | null;
   pronunciations: Pronunciation[];
@@ -75,6 +78,10 @@ export interface DictionaryEntry {
   senses: DictionarySense[];
   homographNumber?: string | null;
   frequencyLabels?: UsageLabel[];
+  /** Whether the headword is in the Oxford 3000/5000 keyword list. */
+  isKeyword?: boolean;
+  /** CEFR level associated with the keyword-list membership above (e.g. "a1", "c1"). */
+  keywordLevel?: string | null;
 }
 
 export interface DictionarySourceResult {

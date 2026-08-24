@@ -25,6 +25,7 @@ public class LongmanHtmlParserTests
         Assert.NotEmpty(result.Entries);
 
         var entry = result.Entries[0];
+        Assert.Equal("example", entry.Headword);
         Assert.Equal("noun", entry.PartOfSpeech);
         Assert.Equal("countable", entry.Grammar);
 

@@ -112,6 +112,7 @@ public static partial class OxfordHtmlParser
 
         return new OxfordDictionaryEntry
         {
+            Headword = ExtractText(webtop, ".headword") ?? "",
             PartOfSpeech = ExtractText(webtop, ".pos"),
             Pronunciations = ExtractPronunciations(webtop),
             InflectionForms = ExtractInflectionForms(entryElement),
