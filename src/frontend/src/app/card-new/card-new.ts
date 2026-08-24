@@ -23,9 +23,9 @@ import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { Tree } from 'primeng/tree';
 import { TreeSelect } from 'primeng/treeselect';
 import type { TreeNode } from 'primeng/api';
+import { Key } from '@primeicons/angular/key';
 import { Plus } from '@primeicons/angular/plus';
 import { Search } from '@primeicons/angular/search';
-import { StarFill } from '@primeicons/angular/star-fill';
 import { Times } from '@primeicons/angular/times';
 import { VolumeUp } from '@primeicons/angular/volume-up';
 import { DeckService } from '../core/deck.service';
@@ -68,9 +68,9 @@ type CardSide = 'front' | 'back';
     Tree,
     TreeSelect,
     FormsModule,
+    Key,
     Plus,
     Search,
-    StarFill,
     Times,
     VolumeUp,
   ],
