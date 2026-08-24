@@ -364,6 +364,20 @@ export class CardNew {
       nodes.push(field('frequencyLabels', 'Frequency'));
     }
 
+    if (entry.inflectionForms.length) {
+      // A group, not a leaf: checking it (de)selects every form at once via checkbox propagation,
+      // but each form is also independently selectable - Oxford in particular can carry several
+      // (comparative, superlative, 3rd person singular, -ing form, ...), each with its own accents.
+      nodes.push({
+        key: `${entryKey}-inflectionForms`,
+        label: 'Inflection forms',
+        data: { isGroup: true, label: 'Inflection forms' } satisfies EntryFieldGroup,
+        children: entry.inflectionForms.map((form, formIndex) =>
+          field('inflectionForm', form.label ?? 'Inflection form', { formIndex }),
+        ),
+      });
+    }
+
     // One group per sense (not one big "Senses" wrapper) - mirrors how a dictionary site lists
     // meanings as separate numbered entries, and lets a single sense be bulk-selected on its own.
     // Order within a sense mirrors that site convention too: grammar/register tag, definition,
@@ -406,20 +420,6 @@ export class CardNew {
         });
       }
     });
-
-    if (entry.inflectionForms.length) {
-      // A group, not a leaf: checking it (de)selects every form at once via checkbox propagation,
-      // but each form is also independently selectable - Oxford in particular can carry several
-      // (comparative, superlative, 3rd person singular, -ing form, ...), each with its own accents.
-      nodes.push({
-        key: `${entryKey}-inflectionForms`,
-        label: 'Inflection forms',
-        data: { isGroup: true, label: 'Inflection forms' } satisfies EntryFieldGroup,
-        children: entry.inflectionForms.map((form, formIndex) =>
-          field('inflectionForm', form.label ?? 'Inflection form', { formIndex }),
-        ),
-      });
-    }
 
     return nodes;
   }

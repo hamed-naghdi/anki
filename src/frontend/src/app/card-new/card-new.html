@@ -95,22 +95,22 @@
 <ng-template #fieldChip let-field="field">
   @switch (field.kind) {
     @case ('headword') {
-      <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ field.entry.headword }}</span>
+      <span class="text-[var(--p-text-color)]">{{ field.entry.headword }}</span>
     }
     @case ('partOfSpeech') {
-      <span class="italic text-[#2b2621] dark:text-[#e8e2d9]">{{ field.entry.partOfSpeech }}</span>
+      <span class="italic text-[var(--p-text-color)]">{{ field.entry.partOfSpeech }}</span>
     }
     @case ('homographNumber') {
-      <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ field.entry.homographNumber }}</span>
+      <span class="text-[var(--p-text-color)]">{{ field.entry.homographNumber }}</span>
     }
     @case ('pronunciation-british') {
       @if (britishPhonetic(field.entry); as uk) {
-        <span class="inline-flex items-center gap-1.5 text-sm text-[#6b6156] dark:text-[#a89e91]">
+        <span class="inline-flex items-center gap-1.5 text-sm text-[var(--p-text-muted-color)]">
           {{ formatIpa(uk.ipa) }}
           @if (uk.audioUrl; as ukAudio) {
             <button
               type="button"
-              class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+              class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10"
               title="Play British pronunciation"
               (click)="playAudio(ukAudio, $event)"
             >
@@ -122,12 +122,12 @@
     }
     @case ('pronunciation-american') {
       @if (americanPhonetic(field.entry); as us) {
-        <span class="inline-flex items-center gap-1.5 text-sm text-[#6b6156] dark:text-[#a89e91]">
+        <span class="inline-flex items-center gap-1.5 text-sm text-[var(--p-text-muted-color)]">
           {{ formatIpa(us.ipa) }}
           @if (us.audioUrl; as usAudio) {
             <button
               type="button"
-              class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+              class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10"
               title="Play American pronunciation"
               (click)="playAudio(usAudio, $event)"
             >
@@ -170,16 +170,16 @@
       @if (inflectionFormFor(field); as form) {
         <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
           @if (field.label; as label) {
-            <span class="text-xs font-medium text-[#6b6156] dark:text-[#a89e91]">{{ label }}:</span>
+            <span class="text-xs font-medium text-[var(--p-text-muted-color)]">{{ label }}:</span>
           }
-          <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ form.form }}</span>
+          <span class="text-[var(--p-text-color)]">{{ form.form }}</span>
           @if (form.pronunciation?.british?.[0]; as uk) {
-            <span class="inline-flex items-center gap-1 text-xs text-[#6b6156] dark:text-[#a89e91]">
+            <span class="inline-flex items-center gap-1 text-xs text-[var(--p-text-muted-color)]">
               {{ formatIpa(uk.ipa) }}
               @if (uk.audioUrl; as ukAudio) {
                 <button
                   type="button"
-                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10"
                   (click)="playAudio(ukAudio, $event)"
                 >
                   <svg data-p-icon="volume-up" class="size-3 text-red-600 dark:text-red-400"></svg>UK
@@ -188,12 +188,12 @@
             </span>
           }
           @if (form.pronunciation?.american?.[0]; as us) {
-            <span class="inline-flex items-center gap-1 text-xs text-[#6b6156] dark:text-[#a89e91]">
+            <span class="inline-flex items-center gap-1 text-xs text-[var(--p-text-muted-color)]">
               {{ formatIpa(us.ipa) }}
               @if (us.audioUrl; as usAudio) {
                 <button
                   type="button"
-                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10"
                   (click)="playAudio(usAudio, $event)"
                 >
                   <svg data-p-icon="volume-up" class="size-3 text-blue-600 dark:text-blue-400"></svg>US
@@ -206,25 +206,25 @@
     }
     @case ('senseDefinition') {
       @if (senseFor(field); as sense) {
-        <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ sense.definition }}</span>
+        <span class="text-[var(--p-text-color)]">{{ sense.definition }}</span>
       }
     }
     @case ('senseGrammar') {
       @if (senseFor(field)?.grammar; as grammar) {
-        <span class="text-xs italic text-[#6b6156] dark:text-[#a89e91]">[{{ grammar }}]</span>
+        <span class="text-xs italic text-[var(--p-text-muted-color)]">[{{ grammar }}]</span>
       }
     }
     @case ('senseRegister') {
       @if (senseFor(field)?.register; as register) {
-        <span class="text-xs italic text-[#6b6156] dark:text-[#a89e91]">({{ register }})</span>
+        <span class="text-xs italic text-[var(--p-text-muted-color)]">({{ register }})</span>
       }
     }
     @case ('senseSynonyms') {
       @if (senseFor(field); as sense) {
         @if (sense.synonyms.length) {
           <span class="inline-flex flex-wrap items-baseline gap-1 text-xs">
-            <span class="font-bold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Syn</span>
-            <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ sense.synonyms.join(', ') }}</span>
+            <span class="font-bold uppercase tracking-wide text-[var(--p-text-muted-color)]">Syn</span>
+            <span class="text-[var(--p-text-color)]">{{ sense.synonyms.join(', ') }}</span>
           </span>
         }
       }
@@ -233,8 +233,8 @@
       @if (senseFor(field); as sense) {
         @if (sense.antonyms.length) {
           <span class="inline-flex flex-wrap items-baseline gap-1 text-xs">
-            <span class="font-bold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Opp</span>
-            <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ sense.antonyms.join(', ') }}</span>
+            <span class="font-bold uppercase tracking-wide text-[var(--p-text-muted-color)]">Opp</span>
+            <span class="text-[var(--p-text-color)]">{{ sense.antonyms.join(', ') }}</span>
           </span>
         }
       }
@@ -249,19 +249,19 @@
               title="Play example"
               (click)="playAudio(audioUrl, $event)"
             >
-              <svg data-p-icon="volume-up" class="size-3.5 text-[#6b6156] dark:text-[#a89e91]"></svg>
+              <svg data-p-icon="volume-up" class="size-3.5 text-[var(--p-text-muted-color)]"></svg>
             </button>
           }
-          <span class="italic text-[#2b2621] dark:text-[#e8e2d9]">
+          <span class="italic text-[var(--p-text-color)]">
             @if (example.pattern; as pattern) {
-              <span class="mr-1 not-italic font-semibold text-[#6b6156] dark:text-[#a89e91]">{{ pattern }}:</span>
+              <span class="mr-1 not-italic font-semibold text-[var(--p-text-muted-color)]">{{ pattern }}:</span>
             }
             @for (segment of example.segments; track $index) {
               <span [class.font-semibold]="segment.isEmphasized">{{ segment.text }}</span>
             }
           </span>
           @if (example.note; as note) {
-            <span class="text-xs text-[#6b6156] dark:text-[#a89e91]">{{ note }}</span>
+            <span class="text-xs text-[var(--p-text-muted-color)]">{{ note }}</span>
           }
         </span>
       }
@@ -272,14 +272,14 @@
 <section class="mt-6">
   @if (!hasSearched()) {
     <div class="rounded-2xl border border-surface-200 p-8 text-center dark:border-surface-700">
-      <p class="font-serif text-lg text-[#2b2621] dark:text-[#e8e2d9]">Search a word to get started</p>
-      <p class="mt-1 text-sm text-[#6b6156] dark:text-[#a89e91]">
+      <p class="font-serif text-lg text-[var(--p-text-color)]">Search a word to get started</p>
+      <p class="mt-1 text-sm text-[var(--p-text-muted-color)]">
         Definitions from the selected dictionaries will appear here.
       </p>
     </div>
   } @else if (searchResource.isLoading()) {
     <div class="rounded-2xl border border-surface-200 p-8 text-center dark:border-surface-700">
-      <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Looking up "{{ submittedTerm() }}"…</p>
+      <p class="text-sm text-[var(--p-text-muted-color)]">Looking up "{{ submittedTerm() }}"…</p>
     </div>
   } @else if (searchError(); as err) {
     <div class="rounded-2xl bg-red-50 p-6 text-sm text-red-600 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-900">
@@ -288,7 +288,7 @@
   } @else {
     <div class="flex flex-col gap-4 lg:flex-row">
       <aside class="flex w-full flex-col gap-3 rounded-2xl border border-surface-200 p-4 dark:border-surface-700 lg:w-40 lg:shrink-0">
-        <span class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Sources</span>
+        <span class="text-xs font-semibold uppercase tracking-wide text-[var(--p-text-muted-color)]">Sources</span>
         @if (resultSources().length) {
           <div class="flex flex-col gap-2.5">
             @for (source of resultSources(); track source) {
@@ -299,12 +299,12 @@
                   (ngModelChange)="toggleResultSource(source, $event)"
                   [inputId]="'source-' + source"
                 />
-                <label [for]="'source-' + source" class="text-sm text-[#2b2621] dark:text-[#e8e2d9]">{{ source }}</label>
+                <label [for]="'source-' + source" class="text-sm text-[var(--p-text-color)]">{{ source }}</label>
               </div>
             }
           </div>
         } @else {
-          <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">No sources returned results.</p>
+          <p class="text-sm text-[var(--p-text-muted-color)]">No sources returned results.</p>
         }
       </aside>
 
@@ -334,7 +334,7 @@
       <ng-template #resultsColumn let-side="side">
         <div class="flex flex-1 flex-col gap-4 p-4">
           <div class="flex items-center justify-between gap-3">
-            <h2 class="font-serif text-xl text-[#2b2621] dark:text-[#e8e2d9]">{{ submittedTerm() }}</h2>
+            <h2 class="font-serif text-xl text-[var(--p-text-color)]">{{ submittedTerm() }}</h2>
             @if (visibleResultSources().length) {
               <button pButton text size="small" type="button" (click)="toggleExpandAll(side)">
                 {{ isAllExpanded(side) ? 'Collapse all' : 'Expand all' }}
@@ -360,20 +360,20 @@
                     >
                       <ng-template #node let-node>
                         @if (node.data?.isGroup) {
-                          <span class="text-sm font-medium text-[#6b6156] dark:text-[#a89e91]">{{ node.label }}</span>
+                          <span class="text-sm font-medium text-[var(--p-text-muted-color)]">{{ node.label }}</span>
                         } @else if (node.data?.kind; as kind) {
                           <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 text-sm">
                             @if (kind !== 'inflectionForm') {
-                              <span class="font-medium text-[#6b6156] dark:text-[#a89e91]">{{ node.data.label }}:</span>
+                              <span class="font-medium text-[var(--p-text-muted-color)]">{{ node.data.label }}:</span>
                             }
                             <ng-container *ngTemplateOutlet="fieldChip; context: { field: node.data }" />
                           </span>
                         } @else {
                           <span class="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 py-0.5">
-                            <span class="font-serif text-[15px] font-semibold text-[#2b2621] dark:text-[#e8e2d9]">
+                            <span class="font-serif text-[15px] font-semibold text-[var(--p-text-color)]">
                               {{ node.data.headword }}
                               @if (node.data?.homographNumber) {
-                                <sup class="ml-0.5 text-[0.65em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ node.data.homographNumber }}</sup>
+                                <sup class="ml-0.5 text-[0.65em] font-normal text-[var(--p-text-muted-color)]">{{ node.data.homographNumber }}</sup>
                               }
                             </span>
 
@@ -381,7 +381,7 @@
                               @if (pron.british[0]?.audioUrl; as ukAudio) {
                                 <button
                                   type="button"
-                                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10"
                                   title="British pronunciation"
                                   (click)="playAudio(ukAudio, $event)"
                                 >
@@ -391,7 +391,7 @@
                               @if (pron.american[0]?.audioUrl; as usAudio) {
                                 <button
                                   type="button"
-                                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                                  class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10"
                                   title="American pronunciation"
                                   (click)="playAudio(usAudio, $event)"
                                 >
@@ -432,7 +432,7 @@
                             }
 
                             @if (node.data?.partOfSpeech) {
-                              <span class="text-xs font-normal italic text-[#6b6156] dark:text-[#a89e91]">{{ node.data.partOfSpeech }}</span>
+                              <span class="text-xs font-normal italic text-[var(--p-text-muted-color)]">{{ node.data.partOfSpeech }}</span>
                             }
                           </span>
                         }
@@ -443,7 +443,7 @@
               }
             </p-accordion>
           } @else {
-            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Select at least one source in the left column to see results here.</p>
+            <p class="text-sm text-[var(--p-text-muted-color)]">Select at least one source in the left column to see results here.</p>
           }
         </div>
       </ng-template>
@@ -462,13 +462,13 @@
             @for (placed of inlineFieldsFor(group); track placed.instanceKey) {
               @switch (placed.field.kind) {
                 @case ('headword') {
-                  <h2 class="font-serif text-2xl font-semibold text-[#2b2621] dark:text-[#e8e2d9]">{{ placed.field.entry.headword }}</h2>
+                  <h2 class="font-serif text-2xl font-semibold text-[var(--p-text-color)]">{{ placed.field.entry.headword }}</h2>
                 }
                 @case ('homographNumber') {
-                  <sup class="text-[0.7em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.homographNumber }}</sup>
+                  <sup class="text-[0.7em] font-normal text-[var(--p-text-muted-color)]">{{ placed.field.entry.homographNumber }}</sup>
                 }
                 @case ('partOfSpeech') {
-                  <span class="text-sm italic text-[#6b6156] dark:text-[#a89e91]">{{ placed.field.entry.partOfSpeech }}</span>
+                  <span class="text-sm italic text-[var(--p-text-muted-color)]">{{ placed.field.entry.partOfSpeech }}</span>
                 }
                 @default {
                   <ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" />
@@ -488,7 +488,7 @@
 
       <ng-template #previewColumn let-side="side">
         <div class="flex flex-1 flex-col gap-4 border-t border-surface-200 p-4 dark:border-surface-700 xl:border-t-0 xl:border-l">
-          <span class="text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Card preview</span>
+          <span class="text-xs font-semibold uppercase tracking-wide text-[var(--p-text-muted-color)]">Card preview</span>
 
           @if (orderGroupsFor(side).length) {
             <div class="flex flex-col gap-3">
@@ -497,10 +497,10 @@
               }
             </div>
           } @else {
-            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Check fields in the results column to preview them here.</p>
+            <p class="text-sm text-[var(--p-text-muted-color)]">Check fields in the results column to preview them here.</p>
           }
 
-          <span class="mt-2 text-xs font-semibold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">
+          <span class="mt-2 text-xs font-semibold uppercase tracking-wide text-[var(--p-text-muted-color)]">
             {{ side === 'front' ? 'Front' : 'Back' }} items · drag groups or fields to reorder, drag a field onto another group to move it there
           </span>
 
@@ -522,13 +522,13 @@
               <ng-template #node let-node>
                 @if (node.children) {
                   <div class="flex w-full items-center justify-between gap-2">
-                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2b2621] dark:text-[#e8e2d9]">
-                      <svg data-p-icon="grip-vertical" class="size-3.5 shrink-0 cursor-grab text-[#6b6156] dark:text-[#a89e91]"></svg>
+                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--p-text-color)]">
+                      <svg data-p-icon="grip-vertical" class="size-3.5 shrink-0 cursor-grab text-[var(--p-text-muted-color)]"></svg>
                       {{ groupLabelFor(side, node) }}
                     </span>
                     <button
                       type="button"
-                      class="shrink-0 rounded p-1 text-[#6b6156] hover:bg-black/10 dark:text-[#a89e91] dark:hover:bg-white/20"
+                      class="shrink-0 rounded p-1 text-[var(--p-text-muted-color)] hover:bg-black/10 dark:hover:bg-white/20"
                       title="Remove group"
                       (click)="removeGroup(side, node)"
                     >
@@ -537,11 +537,11 @@
                   </div>
                 } @else {
                   <div class="flex w-full items-center justify-between gap-2 text-sm">
-                    <span class="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-[#2b2621] dark:text-[#e8e2d9]">
-                      <svg data-p-icon="grip-vertical" class="size-3.5 shrink-0 cursor-grab text-[#6b6156] dark:text-[#a89e91]"></svg>
+                    <span class="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-[var(--p-text-color)]">
+                      <svg data-p-icon="grip-vertical" class="size-3.5 shrink-0 cursor-grab text-[var(--p-text-muted-color)]"></svg>
                       {{ fieldPathLabel(node.data.field) }}
                       @if (fieldValueText(node.data.field); as value) {
-                        <span class="truncate text-[#6b6156] dark:text-[#a89e91]"> — {{ value }}</span>
+                        <span class="truncate text-[var(--p-text-muted-color)]"> — {{ value }}</span>
                       }
                       @if (node.data.isCopy) {
                         <span class="ml-1 shrink-0 rounded bg-black/10 px-1 text-[10px] dark:bg-white/10">copy</span>
@@ -551,7 +551,7 @@
                       @if (node.data.field.kind !== 'headword') {
                         <button
                           type="button"
-                          class="shrink-0 rounded p-1 text-[#6b6156] hover:bg-black/10 dark:text-[#a89e91] dark:hover:bg-white/20"
+                          class="shrink-0 rounded p-1 text-[var(--p-text-muted-color)] hover:bg-black/10 dark:hover:bg-white/20"
                           title="Duplicate"
                           (click)="duplicateField(side, node.data.instanceKey)"
                         >
@@ -560,7 +560,7 @@
                       }
                       <button
                         type="button"
-                        class="shrink-0 rounded p-1 text-[#6b6156] hover:bg-black/10 dark:text-[#a89e91] dark:hover:bg-white/20"
+                        class="shrink-0 rounded p-1 text-[var(--p-text-muted-color)] hover:bg-black/10 dark:hover:bg-white/20"
                         title="Remove"
                         (click)="removeField(side, node.data.instanceKey)"
                       >
@@ -572,7 +572,7 @@
               </ng-template>
             </p-tree>
           } @else {
-            <p class="text-sm text-[#6b6156] dark:text-[#a89e91]">Nothing selected yet.</p>
+            <p class="text-sm text-[var(--p-text-muted-color)]">Nothing selected yet.</p>
           }
         </div>
       </ng-template>
