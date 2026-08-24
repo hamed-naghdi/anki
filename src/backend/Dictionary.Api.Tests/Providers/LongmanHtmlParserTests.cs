@@ -94,6 +94,8 @@ public class LongmanHtmlParserTests
         Assert.Contains(senses, sense => sense.Register is not null);
         Assert.Contains(senses, sense => sense.Synonyms.Contains("real"));
         Assert.Contains(senses, sense => sense.Antonyms.Contains("false"));
+
+        Assert.Equal(["1", "2", "3"], result.Entries.Select(entry => entry.HomographNumber).Where(n => n is not null));
     }
 
     [Fact]

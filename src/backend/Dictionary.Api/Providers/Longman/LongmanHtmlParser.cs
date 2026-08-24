@@ -52,6 +52,7 @@ public static class LongmanHtmlParser
         return new LongmanDictionaryEntry
         {
             PartOfSpeech = ExtractText(headElement, ".POS"),
+            HomographNumber = NullIfEmpty(homnum),
             Hyphenation = ExtractHyphenation(headElement),
             Grammar = ExtractGrammar(headElement),
             Pronunciations = ExtractPronunciations(headElement),

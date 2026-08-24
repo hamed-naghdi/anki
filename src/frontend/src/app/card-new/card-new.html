@@ -155,10 +155,56 @@
                       (selectionChange)="setSelection(side, $any($event))"
                     >
                       <ng-template #node let-node>
-                        <span class="font-semibold text-[#2b2621] dark:text-[#e8e2d9]">{{ submittedTerm() }}</span>
-                        @if (node.data?.partOfSpeech) {
-                          <span class="ml-1.5 text-xs font-normal text-[#6b6156] dark:text-[#a89e91]">{{ node.data.partOfSpeech }}</span>
-                        }
+                        <span class="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 py-0.5">
+                          <span class="font-serif text-[15px] font-semibold text-[#2b2621] dark:text-[#e8e2d9]">
+                            {{ submittedTerm() }}
+                            @if (node.data?.homographNumber) {
+                              <sup class="ml-0.5 text-[0.65em] font-normal text-[#6b6156] dark:text-[#a89e91]">{{ node.data.homographNumber }}</sup>
+                            }
+                          </span>
+
+                          @if (primaryPronunciation(node.data); as pron) {
+                            @if (pron.british[0]?.audioUrl; as ukAudio) {
+                              <button
+                                type="button"
+                                class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                                title="British pronunciation"
+                                (click)="playAudio(ukAudio, $event)"
+                              >
+                                <svg data-p-icon="volume-up" class="size-3"></svg>UK
+                              </button>
+                            }
+                            @if (pron.american[0]?.audioUrl; as usAudio) {
+                              <button
+                                type="button"
+                                class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[#6b6156] hover:bg-black/5 dark:text-[#a89e91] dark:hover:bg-white/10"
+                                title="American pronunciation"
+                                (click)="playAudio(usAudio, $event)"
+                              >
+                                <svg data-p-icon="volume-up" class="size-3"></svg>US
+                              </button>
+                            }
+                          }
+
+                          @if (node.data?.frequencyLabels?.length) {
+                            <span class="inline-flex items-center gap-1.5">
+                              @for (label of node.data.frequencyLabels; track label.code) {
+                                @if (isFrequencyDots(label.code)) {
+                                  <span class="text-xs tracking-tighter text-[#b3453f] dark:text-[#e08a86]" [title]="label.description">{{ label.code }}</span>
+                                } @else {
+                                  <span
+                                    class="rounded border border-[#b3453f]/40 px-1 text-[10px] font-bold uppercase text-[#b3453f] dark:border-[#e08a86]/40 dark:text-[#e08a86]"
+                                    [title]="label.description"
+                                  >{{ label.code }}</span>
+                                }
+                              }
+                            </span>
+                          }
+
+                          @if (node.data?.partOfSpeech) {
+                            <span class="text-xs font-normal italic text-[#6b6156] dark:text-[#a89e91]">{{ node.data.partOfSpeech }}</span>
+                          }
+                        </span>
                       </ng-template>
                     </p-tree>
                   </p-accordion-content>

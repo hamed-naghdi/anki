@@ -15,12 +15,15 @@ import { TreeSelect } from 'primeng/treeselect';
 import type { TreeNode } from 'primeng/api';
 import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
+import { VolumeUp } from '@primeicons/angular/volume-up';
 import { DeckService } from '../core/deck.service';
 import { NoteTypeService } from '../core/note-type.service';
 import {
   DICTIONARY_SOURCES,
+  DictionaryEntry,
   DictionarySearchResult,
   DictionarySourceOption,
+  Pronunciation,
   dictionaryLookupRequest,
 } from '../core/dictionary-api';
 
@@ -53,6 +56,7 @@ type CardSide = 'front' | 'back';
     FormsModule,
     Search,
     Times,
+    VolumeUp,
   ],
   selector: 'app-card-new',
   styles: ``,
@@ -166,6 +170,26 @@ export class CardNew {
 
   protected treeNodesFor(source: string): TreeNode[] {
     return this.treeNodesBySource().get(source) ?? [];
+  }
+
+  // The tree node header shows one pronunciation for the whole entry - the base one (no label),
+  // not one tied to a specific inflection - so this picks that one out of the list the backend
+  // sends (which also includes e.g. "past tense"-labelled pronunciations for irregular verbs).
+  protected primaryPronunciation(entry: DictionaryEntry): Pronunciation | null {
+    return entry.pronunciations.find((pronunciation) => pronunciation.label === null) ?? entry.pronunciations[0] ?? null;
+  }
+
+  // A frequency label is either the 3-dot band ("●●○") or a top-1000 spoken/written badge
+  // ("S1"/"W1") - distinguished here since the two render with very different styling.
+  protected isFrequencyDots(code: string): boolean {
+    return code.includes('●') || code.includes('○');
+  }
+
+  protected playAudio(url: string | null | undefined, event: Event): void {
+    event.stopPropagation();
+    if (url) {
+      void new Audio(url).play();
+    }
   }
 
   // Which entries are checked in each dictionary's tree, tracked per side (front/back never share

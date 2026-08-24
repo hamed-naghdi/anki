@@ -54,7 +54,18 @@ export interface DictionarySense {
   examples: DictionaryExample[];
 }
 
-/** Common shape every provider's entry serializes to; provider-specific extras are omitted. */
+/** A short vocabulary badge with a human-readable explanation, e.g. Longman's frequency dots ("●●○") or S1/W1 top-1000-word markers. */
+export interface UsageLabel {
+  code: string;
+  description: string | null;
+}
+
+/**
+ * Common shape every provider's entry serializes to. `homographNumber` and `frequencyLabels` are
+ * Longman-only extras the backend happens to still send on this shared shape (other providers
+ * just omit them), kept here rather than on a separate Longman type since the tree node template
+ * renders sources generically and reads them defensively.
+ */
 export interface DictionaryEntry {
   provider: string;
   partOfSpeech: string | null;
@@ -62,6 +73,8 @@ export interface DictionaryEntry {
   pronunciations: Pronunciation[];
   inflectionForms: InflectionForm[];
   senses: DictionarySense[];
+  homographNumber?: string | null;
+  frequencyLabels?: UsageLabel[];
 }
 
 export interface DictionarySourceResult {
