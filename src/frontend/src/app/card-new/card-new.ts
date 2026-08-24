@@ -36,7 +36,9 @@ import { NoteTypeService } from '../core/note-type.service';
 import {
   DICTIONARY_SOURCES,
   DictionaryEntry,
+  DictionaryExample,
   DictionarySearchResult,
+  DictionarySense,
   DictionarySourceOption,
   InflectionForm,
   LANGUAGES,
@@ -57,7 +59,8 @@ type CardSide = 'front' | 'back';
 // tree node, so checking/unchecking the entry (the "header") checks/unchecks all of them via
 // PrimeNG's built-in checkbox parent/child propagation, and vice versa. `inflectionForm` is one
 // specific form (e.g. "plural: wives"), not the whole inflectionForms list - that list is instead a
-// pure grouping node (EntryFieldGroup below) so each form can be selected independently.
+// pure grouping node (EntryFieldGroup below) so each form can be selected independently. The
+// `sense*` kinds and `example` work the same way, one level deeper (per sense, then per example).
 type EntryFieldKind =
   | 'headword'
   | 'partOfSpeech'
@@ -66,7 +69,13 @@ type EntryFieldKind =
   | 'pronunciation-american'
   | 'keyword'
   | 'frequencyLabels'
-  | 'inflectionForm';
+  | 'inflectionForm'
+  | 'senseDefinition'
+  | 'senseGrammar'
+  | 'senseRegister'
+  | 'senseSynonyms'
+  | 'senseAntonyms'
+  | 'example';
 
 // "Longman:Entry 2:Pronunciation (UK)" when a source returned more than one entry for the search
 // (homographs, or several parts of speech), otherwise just "Longman:Pronunciation (UK)" - with only
@@ -86,6 +95,11 @@ interface EntryFieldData {
   entryCount: number;
   // Only set for kind 'inflectionForm' - which of entry.inflectionForms this leaf is.
   formIndex?: number;
+  // Set for every sense-scoped kind (senseDefinition/senseGrammar/senseRegister/senseSynonyms/
+  // senseAntonyms/example) - which of entry.senses this leaf belongs to.
+  senseIndex?: number;
+  // Only set for kind 'example' - which of that sense's examples this leaf is.
+  exampleIndex?: number;
 }
 
 // A purely organizational tree node (e.g. "Inflection forms") that groups several selectable
@@ -304,11 +318,25 @@ export class CardNew {
     entryOrdinal: number,
     entryCount: number,
   ): TreeNode[] {
-    const field = (kind: EntryFieldKind, label: string, formIndex?: number): TreeNode => ({
-      key: formIndex !== undefined ? `${entryKey}-inflection-${formIndex}` : `${entryKey}-${kind}`,
-      label,
-      data: { kind, label, entry, entryKey, sourceLabel, entryOrdinal, entryCount, formIndex } satisfies EntryFieldData,
-    });
+    const field = (
+      kind: EntryFieldKind,
+      label: string,
+      extra?: Pick<EntryFieldData, 'formIndex' | 'senseIndex' | 'exampleIndex'>,
+    ): TreeNode => {
+      const key =
+        extra?.exampleIndex !== undefined
+          ? `${entryKey}-sense-${extra.senseIndex}-example-${extra.exampleIndex}`
+          : extra?.senseIndex !== undefined
+            ? `${entryKey}-sense-${extra.senseIndex}-${kind}`
+            : extra?.formIndex !== undefined
+              ? `${entryKey}-inflection-${extra.formIndex}`
+              : `${entryKey}-${kind}`;
+      return {
+        key,
+        label,
+        data: { kind, label, entry, entryKey, sourceLabel, entryOrdinal, entryCount, ...extra } satisfies EntryFieldData,
+      };
+    };
 
     // This order is what determines the order fields land in when the user checks the whole entry
     // at once (PrimeNG's checkbox propagation walks children in this array's order) - keyword,
@@ -335,6 +363,50 @@ export class CardNew {
     if (entry.frequencyLabels?.length) {
       nodes.push(field('frequencyLabels', 'Frequency'));
     }
+
+    // One group per sense (not one big "Senses" wrapper) - mirrors how a dictionary site lists
+    // meanings as separate numbered entries, and lets a single sense be bulk-selected on its own.
+    // Order within a sense mirrors that site convention too: grammar/register tag, definition,
+    // synonyms/antonyms, then a nested Examples group (each example independently selectable, same
+    // reasoning as inflection forms).
+    entry.senses.forEach((sense, senseIndex) => {
+      const senseChildren: TreeNode[] = [];
+      if (sense.grammar) {
+        senseChildren.push(field('senseGrammar', 'Grammar', { senseIndex }));
+      }
+      if (sense.register) {
+        senseChildren.push(field('senseRegister', 'Register', { senseIndex }));
+      }
+      if (sense.definition) {
+        senseChildren.push(field('senseDefinition', 'Definition', { senseIndex }));
+      }
+      if (sense.synonyms.length) {
+        senseChildren.push(field('senseSynonyms', 'Synonyms', { senseIndex }));
+      }
+      if (sense.antonyms.length) {
+        senseChildren.push(field('senseAntonyms', 'Antonyms', { senseIndex }));
+      }
+      if (sense.examples.length) {
+        senseChildren.push({
+          key: `${entryKey}-sense-${senseIndex}-examples`,
+          label: 'Examples',
+          data: { isGroup: true, label: 'Examples' } satisfies EntryFieldGroup,
+          children: sense.examples.map((_, exampleIndex) =>
+            field('example', `Example ${exampleIndex + 1}`, { senseIndex, exampleIndex }),
+          ),
+        });
+      }
+      if (senseChildren.length) {
+        const label = this.senseLabel(sense, senseIndex);
+        nodes.push({
+          key: `${entryKey}-sense-${senseIndex}`,
+          label,
+          data: { isGroup: true, label } satisfies EntryFieldGroup,
+          children: senseChildren,
+        });
+      }
+    });
+
     if (entry.inflectionForms.length) {
       // A group, not a leaf: checking it (de)selects every form at once via checkbox propagation,
       // but each form is also independently selectable - Oxford in particular can carry several
@@ -343,11 +415,25 @@ export class CardNew {
         key: `${entryKey}-inflectionForms`,
         label: 'Inflection forms',
         data: { isGroup: true, label: 'Inflection forms' } satisfies EntryFieldGroup,
-        children: entry.inflectionForms.map((form, formIndex) => field('inflectionForm', form.label ?? 'Inflection form', formIndex)),
+        children: entry.inflectionForms.map((form, formIndex) =>
+          field('inflectionForm', form.label ?? 'Inflection form', { formIndex }),
+        ),
       });
     }
 
     return nodes;
+  }
+
+  // "1. to get something by paying money for it" for a sense's group label in the results tree -
+  // falls back to a plain ordinal when a sense has no definition text (rare, but some providers
+  // return grammar/examples-only sub-entries).
+  private senseLabel(sense: DictionarySense, senseIndex: number): string {
+    const snippet = sense.definition ? this.truncate(sense.definition, 48) : null;
+    return snippet ? `${senseIndex + 1}. ${snippet}` : `Sense ${senseIndex + 1}`;
+  }
+
+  private truncate(text: string, maxLength: number): string {
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
   }
 
   // The tree node header shows one pronunciation for the whole entry - the base one (no label),
@@ -367,6 +453,17 @@ export class CardNew {
 
   protected inflectionFormFor(field: EntryFieldData): InflectionForm | null {
     return field.formIndex !== undefined ? (field.entry.inflectionForms[field.formIndex] ?? null) : null;
+  }
+
+  protected senseFor(field: EntryFieldData): DictionarySense | null {
+    return field.senseIndex !== undefined ? (field.entry.senses[field.senseIndex] ?? null) : null;
+  }
+
+  protected exampleFor(field: EntryFieldData): DictionaryExample | null {
+    if (field.exampleIndex === undefined) {
+      return null;
+    }
+    return this.senseFor(field)?.examples[field.exampleIndex] ?? null;
   }
 
   // Longman regularly prints IPA without its enclosing slashes (e.g. "friː" instead of "/friː/"),
@@ -403,6 +500,18 @@ export class CardNew {
         return (field.entry.frequencyLabels ?? []).map((label) => label.code).join(' ');
       case 'inflectionForm':
         return field.formIndex !== undefined ? (field.entry.inflectionForms[field.formIndex]?.form ?? '') : '';
+      case 'senseDefinition':
+        return this.senseFor(field)?.definition ?? '';
+      case 'senseGrammar':
+        return this.senseFor(field)?.grammar ?? '';
+      case 'senseRegister':
+        return this.senseFor(field)?.register ?? '';
+      case 'senseSynonyms':
+        return (this.senseFor(field)?.synonyms ?? []).join(', ');
+      case 'senseAntonyms':
+        return (this.senseFor(field)?.antonyms ?? []).join(', ');
+      case 'example':
+        return (this.exampleFor(field)?.segments ?? []).map((segment) => segment.text).join('');
     }
   }
 
@@ -517,22 +626,35 @@ export class CardNew {
     return (group.children ?? []).map((child) => child.data as PlacedField);
   }
 
-  protected nonInflectionFieldsFor(group: TreeNode): PlacedField[] {
-    return this.groupFieldsFor(group).filter((placed) => placed.field.kind !== 'inflectionForm');
+  // Prose-like kinds that read badly wrapped inline with badges/tags in the preview - each gets its
+  // own line instead (see stackedFieldsFor). Short tag-like kinds (badges, grammar/register tags,
+  // SYN/OPP) still wrap inline together in inlineFieldsFor.
+  private static readonly STACKED_FIELD_KINDS: ReadonlySet<EntryFieldKind> = new Set<EntryFieldKind>([
+    'inflectionForm',
+    'senseDefinition',
+    'example',
+  ]);
+
+  protected inlineFieldsFor(group: TreeNode): PlacedField[] {
+    return this.groupFieldsFor(group).filter((placed) => !CardNew.STACKED_FIELD_KINDS.has(placed.field.kind));
   }
 
-  protected inflectionFieldsFor(group: TreeNode): PlacedField[] {
-    return this.groupFieldsFor(group).filter((placed) => placed.field.kind === 'inflectionForm');
+  protected stackedFieldsFor(group: TreeNode): PlacedField[] {
+    return this.groupFieldsFor(group).filter((placed) => CardNew.STACKED_FIELD_KINDS.has(placed.field.kind));
   }
 
+  // Only inflection forms get the extra left gap - definitions/examples stack one-per-line too
+  // (see stackedFieldsFor) but without the indent, since that was specifically meant to set an
+  // inflections block apart from the header row above it.
   protected isInflectionGroup(group: TreeNode): boolean {
-    return this.inflectionFieldsFor(group).length > 0;
+    return this.groupFieldsFor(group).some((placed) => placed.field.kind === 'inflectionForm');
   }
 
   // The reorder list's label for a group - the headword (and part of speech) of whichever field in
   // it is a headword; failing that, "<dictionary>: Inflection forms" for a group of inflection
-  // forms (their default group is per-dictionary - see reconcileOrderTree); failing that, a plain
-  // fallback (any other mix of fields is still a perfectly valid group - see OrderGroupData).
+  // forms (their default group is per-dictionary - see reconcileOrderTree); failing that, a sense's
+  // own definition snippet for a group of sense-scoped fields (their default group is per-sense);
+  // failing that, a plain fallback (any other mix of fields is still a valid group - see OrderGroupData).
   protected groupLabelFor(side: CardSide, group: TreeNode): string {
     const fields = this.groupFieldsFor(group);
     const headword = fields.find((placed) => placed.field.kind === 'headword');
@@ -543,6 +665,12 @@ export class CardNew {
     const inflection = fields.find((placed) => placed.field.kind === 'inflectionForm');
     if (inflection) {
       return buildPath(inflection.field.sourceLabel, inflection.field.entryOrdinal, inflection.field.entryCount, 'Inflection forms');
+    }
+    const senseField = fields.find((placed) => placed.field.senseIndex !== undefined);
+    if (senseField) {
+      const sense = this.senseFor(senseField.field);
+      const label = sense ? this.senseLabel(sense, senseField.field.senseIndex!) : 'Sense';
+      return buildPath(senseField.field.sourceLabel, senseField.field.entryOrdinal, senseField.field.entryCount, label);
     }
     const index = this.orderBySide[side]().indexOf(group);
     return `Group ${index + 1}`;
@@ -598,7 +726,11 @@ export class CardNew {
       const placed: PlacedField = { instanceKey: key, field, isCopy: false };
       const child: TreeNode = { key, data: placed };
       const groupKey =
-        field.kind === 'inflectionForm' ? `group-inflections-${field.sourceLabel}` : `group-${field.entryKey}`;
+        field.kind === 'inflectionForm'
+          ? `group-inflections-${field.sourceLabel}`
+          : field.senseIndex !== undefined
+            ? `group-sense-${field.entryKey}-${field.senseIndex}`
+            : `group-${field.entryKey}`;
       const list = additionsByGroupKey.get(groupKey);
       if (list) {
         list.push(child);

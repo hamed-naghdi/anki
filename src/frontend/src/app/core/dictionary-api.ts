@@ -58,6 +58,8 @@ export interface DictionaryExample {
   segments: TextSegment[];
   audioUrl: string | null;
   note: string | null;
+  /** A collocation/grammar pattern this example illustrates (e.g. "buy somebody something") - provider-specific extra, kept here the same way homographNumber/frequencyLabels are on DictionaryEntry. */
+  pattern?: string | null;
 }
 
 export interface DictionarySense {

@@ -204,6 +204,68 @@
         </span>
       }
     }
+    @case ('senseDefinition') {
+      @if (senseFor(field); as sense) {
+        <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ sense.definition }}</span>
+      }
+    }
+    @case ('senseGrammar') {
+      @if (senseFor(field)?.grammar; as grammar) {
+        <span class="text-xs italic text-[#6b6156] dark:text-[#a89e91]">[{{ grammar }}]</span>
+      }
+    }
+    @case ('senseRegister') {
+      @if (senseFor(field)?.register; as register) {
+        <span class="text-xs italic text-[#6b6156] dark:text-[#a89e91]">({{ register }})</span>
+      }
+    }
+    @case ('senseSynonyms') {
+      @if (senseFor(field); as sense) {
+        @if (sense.synonyms.length) {
+          <span class="inline-flex flex-wrap items-baseline gap-1 text-xs">
+            <span class="font-bold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Syn</span>
+            <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ sense.synonyms.join(', ') }}</span>
+          </span>
+        }
+      }
+    }
+    @case ('senseAntonyms') {
+      @if (senseFor(field); as sense) {
+        @if (sense.antonyms.length) {
+          <span class="inline-flex flex-wrap items-baseline gap-1 text-xs">
+            <span class="font-bold uppercase tracking-wide text-[#6b6156] dark:text-[#a89e91]">Opp</span>
+            <span class="text-[#2b2621] dark:text-[#e8e2d9]">{{ sense.antonyms.join(', ') }}</span>
+          </span>
+        }
+      }
+    }
+    @case ('example') {
+      @if (exampleFor(field); as example) {
+        <span class="inline-flex flex-wrap items-start gap-1.5 text-sm">
+          @if (example.audioUrl; as audioUrl) {
+            <button
+              type="button"
+              class="mt-0.5 inline-flex shrink-0 items-center rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
+              title="Play example"
+              (click)="playAudio(audioUrl, $event)"
+            >
+              <svg data-p-icon="volume-up" class="size-3.5 text-[#6b6156] dark:text-[#a89e91]"></svg>
+            </button>
+          }
+          <span class="italic text-[#2b2621] dark:text-[#e8e2d9]">
+            @if (example.pattern; as pattern) {
+              <span class="mr-1 not-italic font-semibold text-[#6b6156] dark:text-[#a89e91]">{{ pattern }}:</span>
+            }
+            @for (segment of example.segments; track $index) {
+              <span [class.font-semibold]="segment.isEmphasized">{{ segment.text }}</span>
+            }
+          </span>
+          @if (example.note; as note) {
+            <span class="text-xs text-[#6b6156] dark:text-[#a89e91]">{{ note }}</span>
+          }
+        </span>
+      }
+    }
   }
 </ng-template>
 
@@ -390,13 +452,14 @@
         A group's items, in whatever order the user dragged them into - not a fixed slot layout, so
         any mix of fields (from any entry or dictionary) can sit in one group. Headword/homograph/
         part of speech still get their own typography; everything else renders via fieldChip.
-        Inflection forms are singled out: each gets its own line rather than wrapping inline with
-        the rest, and a group that holds any gets a left gap to set it apart from the row above it.
+        Prose-like content (inflection forms, sense definitions, examples) is singled out: each gets
+        its own line rather than wrapping inline with the short tags/badges, and a group holding any
+        inflection forms gets a left gap to set that block apart from the row above it.
       -->
       <ng-template #groupContent let-group="group">
         <div [class.pl-4]="isInflectionGroup(group)">
           <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            @for (placed of nonInflectionFieldsFor(group); track placed.instanceKey) {
+            @for (placed of inlineFieldsFor(group); track placed.instanceKey) {
               @switch (placed.field.kind) {
                 @case ('headword') {
                   <h2 class="font-serif text-2xl font-semibold text-[#2b2621] dark:text-[#e8e2d9]">{{ placed.field.entry.headword }}</h2>
@@ -413,9 +476,9 @@
               }
             }
           </div>
-          @if (inflectionFieldsFor(group).length) {
+          @if (stackedFieldsFor(group).length) {
             <div class="mt-1 flex flex-col gap-1">
-              @for (placed of inflectionFieldsFor(group); track placed.instanceKey) {
+              @for (placed of stackedFieldsFor(group); track placed.instanceKey) {
                 <div><ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" /></div>
               }
             </div>
