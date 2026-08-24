@@ -310,22 +310,27 @@ export class CardNew {
       data: { kind, label, entry, entryKey, sourceLabel, entryOrdinal, entryCount, formIndex } satisfies EntryFieldData,
     });
 
-    const nodes: TreeNode[] = [field('headword', 'Headword')];
+    // This order is what determines the order fields land in when the user checks the whole entry
+    // at once (PrimeNG's checkbox propagation walks children in this array's order) - keyword,
+    // headword, homograph number, part of speech, UK then US pronunciation, frequency, matching the
+    // real card design's field order regardless of which of these a given source actually has.
+    const nodes: TreeNode[] = [];
 
-    if (entry.partOfSpeech) {
-      nodes.push(field('partOfSpeech', 'Part of speech'));
+    if (entry.isKeyword || entry.keywordLevel) {
+      nodes.push(field('keyword', 'Keyword & level'));
     }
+    nodes.push(field('headword', 'Headword'));
     if (entry.homographNumber) {
       nodes.push(field('homographNumber', 'Homograph number'));
+    }
+    if (entry.partOfSpeech) {
+      nodes.push(field('partOfSpeech', 'Part of speech'));
     }
     if (this.britishPhonetic(entry)) {
       nodes.push(field('pronunciation-british', 'Pronunciation (UK)'));
     }
     if (this.americanPhonetic(entry)) {
       nodes.push(field('pronunciation-american', 'Pronunciation (US)'));
-    }
-    if (entry.isKeyword || entry.keywordLevel) {
-      nodes.push(field('keyword', 'Keyword & level'));
     }
     if (entry.frequencyLabels?.length) {
       nodes.push(field('frequencyLabels', 'Frequency'));
