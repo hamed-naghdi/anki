@@ -662,11 +662,11 @@ export class CardNew {
   }
 
   // Prose-like kinds that read badly wrapped inline with badges/tags in the preview - each gets its
-  // own line instead (see stackedFieldsFor). Short tag-like kinds (badges, grammar/register tags,
-  // SYN/OPP) still wrap inline together in inlineFieldsFor.
+  // own line instead (see stackedFieldsFor). Everything else - grammar/register tags, the
+  // definition itself, and SYN/OPP - wraps together on one line in inlineFieldsFor, dictionary-style
+  // (e.g. "[transitive] to obtain by paying money SYN buy OPP sell").
   private static readonly STACKED_FIELD_KINDS: ReadonlySet<PlacedFieldData['kind']> = new Set<PlacedFieldData['kind']>([
     'inflectionForm',
-    'senseDefinition',
     'example',
     'richText',
   ]);
@@ -684,6 +684,15 @@ export class CardNew {
   // inflections block apart from the header row above it.
   protected isInflectionGroup(group: TreeNode): boolean {
     return this.groupFieldsFor(group).some((placed) => placed.field.kind === 'inflectionForm');
+  }
+
+  // 1-based sense number for a group holding sense-scoped fields (grammar/register/definition/
+  // synonyms/antonyms/examples), so the card preview can print "1", "2"... the way a dictionary
+  // numbers its senses - null for groups that aren't a sense at all (headword, inflection forms).
+  protected senseNumberFor(group: TreeNode): number | null {
+    const field = this.groupFieldsFor(group).find((placed) => (placed.field as EntryFieldData).senseIndex !== undefined)
+      ?.field as EntryFieldData | undefined;
+    return field?.senseIndex !== undefined ? field.senseIndex + 1 : null;
   }
 
   // The reorder list's label for a group - the headword (and part of speech) of whichever field in

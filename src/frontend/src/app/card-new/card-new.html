@@ -211,20 +211,28 @@
     }
     @case ('senseGrammar') {
       @if (senseFor(field)?.grammar; as grammar) {
-        <span class="text-xs italic text-[var(--p-text-muted-color)]">[{{ grammar }}]</span>
+        <span
+          class="rounded border border-slate-400/40 px-1 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:border-slate-400/40 dark:text-slate-300"
+          >{{ grammar }}</span
+        >
       }
     }
     @case ('senseRegister') {
       @if (senseFor(field)?.register; as register) {
-        <span class="text-xs italic text-[var(--p-text-muted-color)]">({{ register }})</span>
+        <span
+          class="rounded border border-amber-500/40 px-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-400/40 dark:text-amber-300"
+          >{{ register }}</span
+        >
       }
     }
     @case ('senseSynonyms') {
       @if (senseFor(field); as sense) {
         @if (sense.synonyms.length) {
-          <span class="inline-flex flex-wrap items-baseline gap-1 text-xs">
-            <span class="font-bold uppercase tracking-wide text-[var(--p-text-muted-color)]">Syn</span>
-            <span class="text-[var(--p-text-color)]">{{ sense.synonyms.join(', ') }}</span>
+          <span class="text-xs">
+            <span
+              class="mr-1 rounded border border-blue-500/40 px-1 text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:border-blue-400/40 dark:text-blue-300"
+              >Syn</span
+            ><span class="text-[var(--p-text-color)]">{{ sense.synonyms.join(', ') }}</span>
           </span>
         }
       }
@@ -232,9 +240,11 @@
     @case ('senseAntonyms') {
       @if (senseFor(field); as sense) {
         @if (sense.antonyms.length) {
-          <span class="inline-flex flex-wrap items-baseline gap-1 text-xs">
-            <span class="font-bold uppercase tracking-wide text-[var(--p-text-muted-color)]">Opp</span>
-            <span class="text-[var(--p-text-color)]">{{ sense.antonyms.join(', ') }}</span>
+          <span class="text-xs">
+            <span
+              class="mr-1 rounded border border-rose-500/40 px-1 text-[10px] font-bold uppercase tracking-wide text-rose-600 dark:border-rose-400/40 dark:text-rose-300"
+              >Opp</span
+            ><span class="text-[var(--p-text-color)]">{{ sense.antonyms.join(', ') }}</span>
           </span>
         }
       }
@@ -251,6 +261,8 @@
             >
               <svg data-p-icon="volume-up" class="size-3.5 text-[var(--p-text-muted-color)]"></svg>
             </button>
+          } @else {
+            <span class="mt-0.5 inline-flex size-3.5 shrink-0 items-center justify-center text-[var(--p-text-muted-color)]" aria-hidden="true">•</span>
           }
           <span class="italic text-[var(--p-text-color)]">
             @if (example.pattern; as pattern) {
@@ -465,23 +477,28 @@
         inflection forms gets a left gap to set that block apart from the row above it.
       -->
       <ng-template #groupContent let-group="group">
-        <div [class.pl-4]="isInflectionGroup(group)">
-          <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <div class="relative" [class.pl-4]="isInflectionGroup(group)" [class.pl-6]="senseNumberFor(group)">
+          @if (senseNumberFor(group); as senseNumber) {
+            <span class="absolute left-0 top-1 text-sm font-semibold text-[var(--p-text-muted-color)]">{{ senseNumber }}</span>
+          }
+          <div>
             @for (placed of inlineFieldsFor(group); track placed.instanceKey) {
-              @switch (placed.field.kind) {
-                @case ('headword') {
-                  <h2 class="font-serif text-2xl font-semibold text-[var(--p-text-color)]">{{ placed.field.entry.headword }}</h2>
+              <span class="mr-2 align-baseline" [class.inline-block]="placed.field.kind !== 'senseDefinition'">
+                @switch (placed.field.kind) {
+                  @case ('headword') {
+                    <h2 class="inline font-serif text-2xl font-semibold text-[var(--p-text-color)]">{{ placed.field.entry.headword }}</h2>
+                  }
+                  @case ('homographNumber') {
+                    <sup class="text-[0.7em] font-normal text-[var(--p-text-muted-color)]">{{ placed.field.entry.homographNumber }}</sup>
+                  }
+                  @case ('partOfSpeech') {
+                    <span class="text-sm italic text-[var(--p-text-muted-color)]">{{ placed.field.entry.partOfSpeech }}</span>
+                  }
+                  @default {
+                    <ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" />
+                  }
                 }
-                @case ('homographNumber') {
-                  <sup class="text-[0.7em] font-normal text-[var(--p-text-muted-color)]">{{ placed.field.entry.homographNumber }}</sup>
-                }
-                @case ('partOfSpeech') {
-                  <span class="text-sm italic text-[var(--p-text-muted-color)]">{{ placed.field.entry.partOfSpeech }}</span>
-                }
-                @default {
-                  <ng-container *ngTemplateOutlet="fieldChip; context: { field: placed.field }" />
-                }
-              }
+              </span>
             }
           </div>
           @if (stackedFieldsFor(group).length) {
