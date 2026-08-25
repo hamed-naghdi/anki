@@ -8,9 +8,11 @@ public sealed class OxfordSense : ISense
     public string? Grammar { get; init; }
     public string? Register { get; init; }
 
-    // Oxford doesn't expose a clean inline synonym/antonym list on the sense itself (its
-    // "Synonyms" panel is a separate mini-thesaurus entry, not a simple word list), so these
-    // stay empty for now rather than forcing a mismatched extraction.
+    // Oxford's big "Synonyms" panel is a separate mini-thesaurus entry (multiple words, each with
+    // its own usage note and examples), not a simple word list, so it isn't a fit for this field.
+    // What's parsed here instead is the sense's own "opposite"/"synonym" cross-reference line
+    // (a plain xrefs span, e.g. "opposite untrue") - a much shorter list, but a clean one, and the
+    // closest Oxford equivalent of Longman's inline SYN/OPP tag.
     public IReadOnlyList<string> Synonyms { get; init; } = [];
     public IReadOnlyList<string> Antonyms { get; init; } = [];
 

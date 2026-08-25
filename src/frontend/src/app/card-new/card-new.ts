@@ -72,6 +72,7 @@ type EntryFieldKind =
   | 'frequencyLabels'
   | 'inflectionForm'
   | 'senseDefinition'
+  | 'senseKeyword'
   | 'senseGrammar'
   | 'senseRegister'
   | 'senseSynonyms'
@@ -409,11 +410,14 @@ export class CardNew {
 
     // One group per sense (not one big "Senses" wrapper) - mirrors how a dictionary site lists
     // meanings as separate numbered entries, and lets a single sense be bulk-selected on its own.
-    // Order within a sense mirrors that site convention too: grammar/register tag, definition,
-    // synonyms/antonyms, then a nested Examples group (each example independently selectable, same
-    // reasoning as inflection forms).
+    // Order within a sense mirrors that site convention too: keyword/CEFR badge, grammar/register
+    // tag, definition, synonyms/antonyms, then a nested Examples group (each example independently
+    // selectable, same reasoning as inflection forms).
     entry.senses.forEach((sense, senseIndex) => {
       const senseChildren: TreeNode[] = [];
+      if (sense.isKeyword || sense.cefrLevel) {
+        senseChildren.push(field('senseKeyword', 'Level', { senseIndex }));
+      }
       if (sense.grammar) {
         senseChildren.push(field('senseGrammar', 'Grammar', { senseIndex }));
       }
@@ -537,6 +541,12 @@ export class CardNew {
         return field.formIndex !== undefined ? (field.entry.inflectionForms[field.formIndex]?.form ?? '') : '';
       case 'senseDefinition':
         return this.senseFor(field)?.definition ?? '';
+      case 'senseKeyword': {
+        const sense = this.senseFor(field);
+        return [sense?.isKeyword ? 'keyword' : null, sense?.cefrLevel?.toUpperCase() ?? null]
+          .filter((part): part is string => !!part)
+          .join(' · ');
+      }
       case 'senseGrammar':
         return this.senseFor(field)?.grammar ?? '';
       case 'senseRegister':

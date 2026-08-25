@@ -84,6 +84,21 @@ public class OxfordHtmlParserTests
     }
 
     [Fact]
+    public void Parse_TrueFixture_ExtractsAntonymFromCrossReference()
+    {
+        var html = LoadFixture("oxford-true.html");
+
+        var result = OxfordHtmlParser.Parse("true", html);
+
+        Assert.Null(result.Error);
+        var entry = Assert.Single(result.Entries, e => e.PartOfSpeech == "adjective");
+        var firstSense = entry.Senses[0];
+
+        Assert.Equal(["untrue"], firstSense.Antonyms);
+        Assert.Empty(firstSense.Synonyms);
+    }
+
+    [Fact]
     public void Parse_GuyFixture_ExtractsInformalRegister()
     {
         var html = LoadFixture("oxford-guy.html");

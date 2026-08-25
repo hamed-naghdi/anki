@@ -69,6 +69,10 @@ export interface DictionarySense {
   synonyms: string[];
   antonyms: string[];
   examples: DictionaryExample[];
+  /** This sense's own CEFR level (Oxford-only), independent of the entry-level keyword level. */
+  cefrLevel?: string | null;
+  /** Whether this specific sense is flagged as an Oxford 3000/5000 keyword sense. */
+  isKeyword?: boolean;
 }
 
 /** A short vocabulary badge with a human-readable explanation, e.g. Longman's frequency dots ("●●○") or S1/W1 top-1000-word markers. */

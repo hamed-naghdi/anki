@@ -190,6 +190,8 @@ public static partial class OxfordHtmlParser
             Definition = ExtractText(senseElement, ".def"),
             Grammar = ExtractGrammar(senseElement),
             Register = ExtractRegister(senseElement),
+            Synonyms = ExtractCrossReferenceWords(senseElement, "syn"),
+            Antonyms = ExtractCrossReferenceWords(senseElement, "opp"),
             Patterns = patterns,
             CefrLevel = cefrLevel,
             IsKeyword = isKeyword,
@@ -559,6 +561,38 @@ public static partial class OxfordHtmlParser
 
         var cleaned = raw.Trim('(', ')').Trim();
         return string.IsNullOrEmpty(cleaned) ? null : cleaned;
+    }
+
+    /// <summary>
+    /// The plain word(s) out of a sense's "opposite"/"synonym" cross-reference line, e.g.
+    /// <c>&lt;span class="xrefs" xt="opp"&gt;&lt;span class="prefix"&gt;opposite&lt;/span&gt; &lt;a&gt;&lt;span class="xr-g"&gt;&lt;span class="xh"&gt;untrue&lt;/span&gt;&lt;/span&gt;&lt;/a&gt;&lt;/span&gt;</c>
+    /// (several words appear as several ".xh" spans, comma-separated) - <paramref name="crossReferenceType"/>
+    /// is Oxford's own "xt" value ("opp" for antonyms, "syn" for synonyms), which also covers
+    /// unrelated "see also" cross-references (xt="see") that this deliberately ignores by only
+    /// matching the type asked for.
+    /// </summary>
+    private static List<string> ExtractCrossReferenceWords(IElement senseElement, string crossReferenceType)
+    {
+        var words = new List<string>();
+
+        foreach (var xrefs in senseElement.QuerySelectorAll(".xrefs"))
+        {
+            if (xrefs.GetAttribute("xt") != crossReferenceType)
+            {
+                continue;
+            }
+
+            foreach (var headword in xrefs.QuerySelectorAll(".xh"))
+            {
+                var text = headword.TextContent.Trim();
+                if (text.Length > 0)
+                {
+                    words.Add(text);
+                }
+            }
+        }
+
+        return words;
     }
 
     [GeneratedRegex(@"^ox[35]ksym_([a-c][12])$")]
