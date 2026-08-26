@@ -66,11 +66,13 @@ type EntryFieldKind =
   | 'headword'
   | 'partOfSpeech'
   | 'homographNumber'
+  | 'grammar'
   | 'pronunciation-british'
   | 'pronunciation-american'
   | 'keyword'
   | 'frequencyLabels'
   | 'inflectionForm'
+  | 'senseImage'
   | 'senseDefinition'
   | 'senseKeyword'
   | 'senseGrammar'
@@ -97,8 +99,8 @@ interface EntryFieldData {
   entryCount: number;
   // Only set for kind 'inflectionForm' - which of entry.inflectionForms this leaf is.
   formIndex?: number;
-  // Set for every sense-scoped kind (senseDefinition/senseGrammar/senseRegister/senseSynonyms/
-  // senseAntonyms/example) - which of entry.senses this leaf belongs to.
+  // Set for every sense-scoped kind (senseImage/senseDefinition/senseGrammar/senseRegister/
+  // senseSynonyms/senseAntonyms/example) - which of entry.senses this leaf belongs to.
   senseIndex?: number;
   // Only set for kind 'example' - which of that sense's examples this leaf is.
   exampleIndex?: number;
@@ -384,6 +386,9 @@ export class CardNew {
     if (entry.partOfSpeech) {
       nodes.push(field('partOfSpeech', 'Part of speech'));
     }
+    if (entry.grammar) {
+      nodes.push(field('grammar', 'Grammar'));
+    }
     if (this.britishPhonetic(entry)) {
       nodes.push(field('pronunciation-british', 'Pronunciation (UK)'));
     }
@@ -410,11 +415,15 @@ export class CardNew {
 
     // One group per sense (not one big "Senses" wrapper) - mirrors how a dictionary site lists
     // meanings as separate numbered entries, and lets a single sense be bulk-selected on its own.
-    // Order within a sense mirrors that site convention too: keyword/CEFR badge, grammar/register
-    // tag, definition, synonyms/antonyms, then a nested Examples group (each example independently
+    // Order within a sense mirrors that site convention too: illustration first (Longman prints it
+    // above everything else in the sense), then keyword/CEFR badge, grammar/register tag,
+    // definition, synonyms/antonyms, then a nested Examples group (each example independently
     // selectable, same reasoning as inflection forms).
     entry.senses.forEach((sense, senseIndex) => {
       const senseChildren: TreeNode[] = [];
+      if (sense.imageUrl) {
+        senseChildren.push(field('senseImage', 'Picture', { senseIndex }));
+      }
       if (sense.isKeyword || sense.cefrLevel) {
         senseChildren.push(field('senseKeyword', 'Level', { senseIndex }));
       }
@@ -523,6 +532,8 @@ export class CardNew {
         return field.entry.partOfSpeech ?? '';
       case 'homographNumber':
         return field.entry.homographNumber ?? '';
+      case 'grammar':
+        return field.entry.grammar ?? '';
       case 'pronunciation-british': {
         const uk = this.britishPhonetic(field.entry);
         return uk ? this.formatIpa(uk.ipa) : '';
@@ -539,6 +550,8 @@ export class CardNew {
         return (field.entry.frequencyLabels ?? []).map((label) => label.code).join(' ');
       case 'inflectionForm':
         return field.formIndex !== undefined ? (field.entry.inflectionForms[field.formIndex]?.form ?? '') : '';
+      case 'senseImage':
+        return this.senseFor(field)?.imageUrl ?? '';
       case 'senseDefinition':
         return this.senseFor(field)?.definition ?? '';
       case 'senseKeyword': {
