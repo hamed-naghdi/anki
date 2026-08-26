@@ -192,7 +192,15 @@ interface OrderGroupData {
     VolumeUp,
   ],
   selector: 'app-card-new',
-  styles: ``,
+  // PrimeNG's own .p-tree-node-label never grows past its flex-item default (flex: 0 1 auto), so a
+  // node template's own w-full only ever fills that shrink-wrapped box, not the actual row - not
+  // reachable without ::ng-deep since it's rendered by p-tree's own template, not this component's.
+  styles: `
+    ::ng-deep .p-tree-node-label {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  `,
   templateUrl: './card-new.html',
   // p-tree's draggableNodes/droppableNodes silently no-op (actually throw internally, since it
   // calls straight into it with no null-check) without a TreeDragDropService in scope - PrimeNG
@@ -692,6 +700,7 @@ export class CardNew {
     'inflectionForm',
     'example',
     'richText',
+    'senseImage',
   ]);
 
   protected inlineFieldsFor(group: TreeNode): PlacedField[] {

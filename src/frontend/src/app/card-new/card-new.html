@@ -222,7 +222,7 @@
     }
     @case ('senseKeyword') {
       @if (senseFor(field); as sense) {
-        <span class="inline-flex items-center gap-1">
+        <span class="relative top-1 inline-flex items-center gap-1">
           @if (sense.isKeyword) {
             <svg data-p-icon="key" class="size-3 text-amber-500 dark:text-amber-400" title="Oxford 3000/5000 keyword sense"></svg>
           }
