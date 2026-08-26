@@ -49,6 +49,39 @@ public class LongmanHtmlParserTests
     }
 
     [Fact]
+    public void Parse_FryingPanFixture_ExtractsAudioOnlyPronunciationSenseImageAndCrossrefIdiom()
+    {
+        var html = LoadFixture("longman-frying-pan.html");
+
+        var result = LongmanHtmlParser.Parse("frying pan", html);
+
+        Assert.Null(result.Error);
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal("countable", entry.Grammar);
+
+        // "frying pan" prints audio buttons but no IPA line at all (Longman treats the
+        // pronunciation as obvious from its already-defined component words) - both accents' audio
+        // must still come through even though there's no .PronCodes to hang an IPA off of.
+        var pronunciation = Assert.Single(entry.Pronunciations);
+        var british = Assert.Single(pronunciation.British);
+        var american = Assert.Single(pronunciation.American);
+        Assert.Equal("", british.Ipa);
+        Assert.Equal("", american.Ipa);
+        Assert.NotNull(british.AudioUrl);
+        Assert.NotNull(american.AudioUrl);
+
+        var sense = Assert.Single(entry.Senses);
+        Assert.Equal(
+            "https://www.ldoceonline.com/media/english/illustration/frying_pan.jpg",
+            sense.ImageUrl);
+
+        // Sense 2 is nothing but "-> out of the frying pan and into the fire" - no DEF of its own,
+        // so it must surface as an idiom cross-reference instead of being silently dropped.
+        var idiom = Assert.Single(entry.Idioms);
+        Assert.Equal("out of the frying pan and into the fire", idiom.Phrase);
+    }
+
+    [Fact]
     public void Parse_UnknownWord_ReturnsError()
     {
         var result = LongmanHtmlParser.Parse("zzzzznotaword", "<html><body>not found</body></html>");

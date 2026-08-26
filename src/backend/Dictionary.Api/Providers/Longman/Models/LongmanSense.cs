@@ -23,5 +23,8 @@ public sealed class LongmanSense : ISense
     /// <summary>Longman's raw subject-field code, e.g. "DST" for the tennis sense of "break" - printed as an icon on the site, no text expansion is available from the HTML alone.</summary>
     public string? Field { get; init; }
 
+    /// <summary>Illustration Longman prints at the top of this sense (e.g. "frying pan", "corkscrew") - null for the vast majority of senses, which have none.</summary>
+    public string? ImageUrl { get; init; }
+
     IReadOnlyList<IExample> ISense.Examples => Examples;
 }

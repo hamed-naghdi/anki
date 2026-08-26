@@ -127,17 +127,33 @@ public static class LongmanHtmlParser
             Guideword = guideword,
             Signpost = signpost,
             Field = field,
+            ImageUrl = ExtractSenseImage(scope),
         };
 
         var isMeaningful = sense.Definition is not null
             || sense.Examples.Count > 0
             || sense.Synonyms.Count > 0
-            || sense.Antonyms.Count > 0;
+            || sense.Antonyms.Count > 0
+            || sense.ImageUrl is not null;
 
         return isMeaningful ? sense : null;
     }
 
-    /// <summary>Idioms and phrasal verbs built on the headword - Longman only cross-references these (a title + a link to their own page), never embeds their definition here.</summary>
+    /// <summary>An illustration (e.g. "frying pan", "corkscrew") is a plain img sitting directly in the sense/subsense, not wrapped in any dedicated class - so it's found positionally rather than by selector.</summary>
+    private static string? ExtractSenseImage(IElement scope)
+    {
+        var src = scope.Children.FirstOrDefault(c => c.TagName.Equals("IMG", StringComparison.OrdinalIgnoreCase))?.GetAttribute("src");
+        return string.IsNullOrEmpty(src) ? null : StripQueryString(src);
+    }
+
+    /// <summary>
+    /// Idioms and phrasal verbs built on the headword - Longman only cross-references these (a
+    /// title + a link to their own page), never embeds their definition here. Most are wrapped in
+    /// their own .SubEntry/.PhrVbEntry box, but Longman also numbers some as a plain .Sense/
+    /// .Subsense whose entire content is a "→ some other entry" .Crossref (e.g. "frying pan" sense
+    /// 2 -> "out of the frying pan and into the fire", "paper" sense 3 -> "papers") - those carry no
+    /// DEF, so <see cref="BuildSense"/> would otherwise treat them as empty and drop them silently.
+    /// </summary>
     private static List<LongmanIdiom> ExtractIdioms(IElement ldEntry)
     {
         var idioms = new List<LongmanIdiom>();
@@ -145,22 +161,40 @@ public static class LongmanHtmlParser
 
         foreach (var wrapper in ldEntry.QuerySelectorAll(".SubEntry, .PhrVbEntry"))
         {
-            var link = wrapper.QuerySelector("a.crossRef");
-            if (link is null)
+            AddIdiom(wrapper.QuerySelector("a.crossRef"), wrapper, idioms, seenPhrases);
+        }
+
+        foreach (var senseWrapper in ldEntry.QuerySelectorAll(".Sense, .Subsense"))
+        {
+            if (senseWrapper.Children.Any(c => c.ClassList.Contains("DEF")))
             {
                 continue;
             }
 
-            var phrase = ExtractText(wrapper, ".REFHWD") ?? NullIfEmpty(link.TextContent.Trim());
-            if (phrase is null || !seenPhrases.Add(phrase))
+            var crossref = senseWrapper.Children.FirstOrDefault(c => c.ClassList.Contains("Crossref"));
+            if (crossref is not null)
             {
-                continue;
+                AddIdiom(crossref.QuerySelector("a.crossRef"), crossref, idioms, seenPhrases);
             }
-
-            idioms.Add(new LongmanIdiom { Phrase = phrase, Url = NullIfEmpty(link.GetAttribute("href")) });
         }
 
         return idioms;
+    }
+
+    private static void AddIdiom(IElement? link, IElement scope, List<LongmanIdiom> idioms, HashSet<string> seenPhrases)
+    {
+        if (link is null)
+        {
+            return;
+        }
+
+        var phrase = ExtractText(scope, ".REFHWD") ?? NullIfEmpty(link.TextContent.Trim());
+        if (phrase is null || !seenPhrases.Add(phrase))
+        {
+            return;
+        }
+
+        idioms.Add(new LongmanIdiom { Phrase = phrase, Url = NullIfEmpty(link.GetAttribute("href")) });
     }
 
     /// <summary>
@@ -437,19 +471,41 @@ public static class LongmanHtmlParser
         return new LongmanExample { Segments = segments, AudioUrl = audio, Note = combinedNote, Pattern = pattern };
     }
 
-    /// <summary>The headword's own pronunciation only - inflected forms' pronunciations live on their own InflectionForm instead.</summary>
+    /// <summary>
+    /// The headword's own pronunciation only - inflected forms' pronunciations live on their own
+    /// InflectionForm instead. Multi-word headwords built entirely from already-defined component
+    /// words (e.g. "frying pan", "washing machine") print no .PronCodes/IPA line at all - Longman
+    /// considers the pronunciation obvious - but still record the audio buttons, so those still
+    /// need to come through rather than being dropped along with the (absent) IPA.
+    /// </summary>
     private static List<Pronunciation> ExtractPronunciations(IElement? headElement)
     {
-        var primaryPronCodes = headElement?.Children.FirstOrDefault(c => c.ClassList.Contains("PronCodes"));
-        if (primaryPronCodes is null)
+        if (headElement is null)
         {
             return [];
         }
 
-        var britishAudio = ExtractSpeakerAudio(headElement!, "brefile");
-        var americanAudio = ExtractSpeakerAudio(headElement!, "amefile");
-        var pronunciation = BuildPronunciation(primaryPronCodes, label: null, britishAudio, americanAudio);
+        var britishAudio = ExtractSpeakerAudio(headElement, "brefile");
+        var americanAudio = ExtractSpeakerAudio(headElement, "amefile");
+
+        var primaryPronCodes = headElement.Children.FirstOrDefault(c => c.ClassList.Contains("PronCodes"));
+        var pronunciation = primaryPronCodes is null
+            ? BuildAudioOnlyPronunciation(britishAudio, americanAudio)
+            : BuildPronunciation(primaryPronCodes, label: null, britishAudio, americanAudio);
+
         return pronunciation is null ? [] : [pronunciation];
+    }
+
+    private static Pronunciation? BuildAudioOnlyPronunciation(string? britishAudioUrl, string? americanAudioUrl)
+    {
+        if (britishAudioUrl is null && americanAudioUrl is null)
+        {
+            return null;
+        }
+
+        List<PhoneticVariant> AudioOnlyVariant(string? url) => url is null ? [] : [new PhoneticVariant { Ipa = "", AudioUrl = url }];
+
+        return new Pronunciation { Label = null, British = AudioOnlyVariant(britishAudioUrl), American = AudioOnlyVariant(americanAudioUrl) };
     }
 
     /// <summary>

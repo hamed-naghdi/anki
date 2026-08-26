@@ -73,6 +73,8 @@ export interface DictionarySense {
   cefrLevel?: string | null;
   /** Whether this specific sense is flagged as an Oxford 3000/5000 keyword sense. */
   isKeyword?: boolean;
+  /** Illustration Longman prints at the top of this sense (e.g. "frying pan"), null for the vast majority of senses, which have none. */
+  imageUrl?: string | null;
 }
 
 /** A short vocabulary badge with a human-readable explanation, e.g. Longman's frequency dots ("●●○") or S1/W1 top-1000-word markers. */
