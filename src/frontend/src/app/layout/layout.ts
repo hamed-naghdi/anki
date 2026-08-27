@@ -8,8 +8,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { Clone } from '@primeicons/angular/clone';
 import { Home } from '@primeicons/angular/home';
-import { Inbox } from '@primeicons/angular/inbox';
 import { Search } from '@primeicons/angular/search';
 import { Bell } from '@primeicons/angular/bell';
 import { Cog } from '@primeicons/angular/cog';
@@ -27,8 +27,8 @@ import { Sidebar } from '@primeicons/angular/sidebar';
     SelectModule,
     IconFieldModule,
     InputIconModule,
+    Clone,
     Home,
-    Inbox,
     Search,
     Bell,
     Cog,

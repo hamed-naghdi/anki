@@ -8,12 +8,26 @@ import {
   dictionaryModelName,
   parseStyleVersion,
 } from '../card-template/card-model';
+import { CARD_STATE_VERSION, CardState, decodeState } from '../card-template/card-state';
+
+interface AnkiNoteInfo {
+  noteId: number;
+  fields: Record<string, { value: string; order: number }>;
+  cards: number[];
+}
+
+/** Everything card-new needs to reopen an existing note for editing. */
+export interface LoadedCard {
+  state: CardState;
+  cardIds: number[];
+  deckName: string;
+}
 
 /**
- * Owns the per-language dictionary note types in Anki (En-Dictionary, ...). "Add to Anki" is the
- * only entry point: it creates the note type on first use and re-pushes its styling + card
- * templates whenever the version compiled into the app is newer than the one stored in Anki.
- * Existing notes and their field content are never touched.
+ * Owns the per-language dictionary note types in Anki (En-Dictionary, ...). Creates a note type on
+ * first use and re-pushes its styling + card templates whenever the version compiled into the app
+ * is newer than the one stored in Anki; also backfills the hidden `State` field on note types made
+ * by an older build. Never touches a note's field content except through addNote / updateNote here.
  */
 @Injectable({ providedIn: 'root' })
 export class AnkiModelService {
@@ -25,6 +39,7 @@ export class AnkiModelService {
     frontHtml: string,
     backHtml: string,
     deckName: string,
+    state: string,
   ): Promise<number> {
     const modelName = dictionaryModelName(languageKey);
     const css = await this.stylesheet.load();
@@ -36,14 +51,68 @@ export class AnkiModelService {
       note: {
         deckName,
         modelName,
-        fields: { Front: frontHtml, Back: backHtml },
+        fields: { Front: frontHtml, Back: backHtml, State: state },
         tags: ['personal-dictionary'],
         options: { allowDuplicate: false, duplicateScope: 'deck' },
       },
     });
   }
 
-  /** Open Anki's card browser filtered to a note we just added. */
+  /** Read back a note's editor state (+ its cards and deck) so card-new can rehydrate. */
+  async loadCard(noteId: number): Promise<LoadedCard> {
+    const notes = await this.anki.invoke<AnkiNoteInfo[]>('notesInfo', { notes: [noteId] });
+    const note = notes[0];
+    if (!note) {
+      throw new Error(`Note ${noteId} was not found in Anki.`);
+    }
+
+    const raw = note.fields['State']?.value ?? '';
+    if (!raw.trim()) {
+      throw new Error(
+        'This card has no saved editor data — it predates card editing, or was edited directly in Anki.',
+      );
+    }
+
+    let state: CardState;
+    try {
+      state = decodeState(raw);
+    } catch {
+      throw new Error('This card’s saved editor data is unreadable.');
+    }
+    if (state.v !== CARD_STATE_VERSION) {
+      throw new Error(
+        `This card was saved by a different app version (data v${state.v}, this build expects v${CARD_STATE_VERSION}) — re-create it to edit.`,
+      );
+    }
+
+    const cards = await this.anki.invoke<Array<{ deckName: string }>>('cardsInfo', {
+      cards: note.cards,
+    });
+    return { state, cardIds: note.cards, deckName: cards[0]?.deckName ?? '' };
+  }
+
+  /** Save an edited card back: overwrite its fields, and move its cards if the deck changed. */
+  async updateNote(
+    languageKey: string,
+    noteId: number,
+    cardIds: number[],
+    frontHtml: string,
+    backHtml: string,
+    state: string,
+    deckName: string,
+  ): Promise<void> {
+    const css = await this.stylesheet.load();
+    await this.ensureModel(dictionaryModelName(languageKey), css);
+
+    await this.anki.invoke('updateNoteFields', {
+      note: { id: noteId, fields: { Front: frontHtml, Back: backHtml, State: state } },
+    });
+    if (deckName && cardIds.length) {
+      await this.anki.invoke('changeDeck', { cards: cardIds, deck: deckName });
+    }
+  }
+
+  /** Open Anki's card browser filtered to a note. */
   async showInBrowser(noteId: number): Promise<void> {
     await this.anki.invoke('guiBrowse', { query: `nid:${noteId}` });
   }
@@ -60,6 +129,14 @@ export class AnkiModelService {
         cardTemplates: CARD_TEMPLATES,
       });
       return;
+    }
+
+    // A note type from an older build may be missing the hidden `State` field.
+    const fields = await this.anki.invoke<string[]>('modelFieldNames', { modelName });
+    for (const [index, name] of MODEL_FIELDS.entries()) {
+      if (!fields.includes(name)) {
+        await this.anki.invoke('modelFieldAdd', { modelName, fieldName: name, index });
+      }
     }
 
     const stored = parseStyleVersion(

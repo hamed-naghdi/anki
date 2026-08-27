@@ -33,9 +33,16 @@ import { Plus } from '@primeicons/angular/plus';
 import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
 import { VolumeUp } from '@primeicons/angular/volume-up';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DeckService } from '../core/deck.service';
 import { AnkiModelService } from '../core/anki-model.service';
 import { renderCardSide } from '../card-template/render-card';
+import {
+  CARD_STATE_VERSION,
+  CardState,
+  SerializedGroup,
+  encodeState,
+} from '../card-template/card-state';
 import {
   DICTIONARY_SOURCES,
   DictionaryEntry,
@@ -191,6 +198,7 @@ interface OrderGroupData {
     Tree,
     TreeSelect,
     FormsModule,
+    RouterLink,
     Message,
     GripVertical,
     Key,
@@ -220,6 +228,17 @@ export class CardNew {
   // picker: the app owns one note type per language (En-Dictionary, ...), managed by AnkiModelService.
   protected readonly deckService = inject(DeckService);
   private readonly ankiModelService = inject(AnkiModelService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  // Non-null when the page was opened as /cards/:noteId/edit - the component then rehydrates from
+  // that note's saved State instead of a fresh search, and "Add to Anki" becomes "Save changes".
+  protected readonly editingNoteId = signal<number | null>(null);
+  private readonly editCardIds = signal<number[]>([]);
+  protected readonly editLoading = signal(false);
+  protected readonly editError = signal<string | null>(null);
+  // How many placed fields were dropped on load because the stored search no longer resolves them.
+  protected readonly editDroppedFields = signal(0);
 
   protected readonly languages: LanguageOption[] = [...LANGUAGES];
 
@@ -241,9 +260,14 @@ export class CardNew {
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
   constructor() {
-    // Landing on this page is always to search for a word, so the box should be ready to type
-    // into immediately - no click required.
-    afterNextRender(() => this.searchInput()?.nativeElement.focus());
+    const noteIdParam = this.route.snapshot.paramMap.get('noteId');
+    if (noteIdParam) {
+      void this.loadForEdit(Number(noteIdParam));
+    } else {
+      // Landing on the "new card" page is always to search for a word, so the box should be ready
+      // to type into immediately - no click required.
+      afterNextRender(() => this.searchInput()?.nativeElement.focus());
+    }
   }
 
   searchTerm = signal('');
@@ -261,14 +285,26 @@ export class CardNew {
   protected readonly submittedSources = signal<string[]>([]);
 
   protected readonly searchResource = httpResource<DictionarySearchResult>(() => {
+    // In edit mode the results come from the loaded card, never the network.
+    if (this.editingNoteId() !== null) {
+      return undefined;
+    }
     const word = this.submittedTerm();
     const sources = this.submittedSources();
     return word && sources.length ? dictionaryLookupRequest(word, sources) : undefined;
   });
 
-  protected readonly hasSearched = computed(() => this.submittedTerm().length > 0);
+  // The results feeding the whole UI: a loaded card's stored search in edit mode, otherwise the
+  // live lookup.
+  private readonly loadedResults = signal<DictionarySearchResult | null>(null);
+
+  protected readonly hasSearched = computed(
+    () => this.submittedTerm().length > 0 || this.loadedResults() !== null,
+  );
   protected readonly searchError = computed(() => this.searchResource.error()?.message ?? null);
-  protected readonly sourceResults = computed(() => this.searchResource.value()?.results ?? []);
+  protected readonly sourceResults = computed(
+    () => (this.loadedResults() ?? this.searchResource.value())?.results ?? [],
+  );
 
   // Only sources that actually came back with something to show - a source queried but empty
   // (or errored) doesn't belong in this list at all, not just unchecked.
@@ -1114,12 +1150,156 @@ export class CardNew {
     );
   }
 
-  // --- Add to Anki -------------------------------------------------------------------------------
+  // --- Load an existing card for editing --------------------------------------------------------
+
+  private async loadForEdit(noteId: number): Promise<void> {
+    this.editingNoteId.set(noteId);
+    this.editLoading.set(true);
+    this.editError.set(null);
+    try {
+      const loaded = await this.ankiModelService.loadCard(noteId);
+      this.editCardIds.set(loaded.cardIds);
+      this.hydrate(loaded.state);
+      if (loaded.deckName) {
+        this.deckService.selectDeck(loaded.deckName);
+      }
+    } catch (error) {
+      this.editError.set((error as Error).message);
+    } finally {
+      this.editLoading.set(false);
+    }
+  }
+
+  // Rebuilds the whole editing surface from a saved CardState: seed the search results, let the
+  // results-derived signals settle, then write back each side's checked leaves and ordered groups.
+  private hydrate(state: CardState): void {
+    this.selectedLanguage.set(state.language);
+    this.selectedSources.set(state.sources);
+    this.submittedTerm.set(state.word);
+    this.loadedResults.set(state.search);
+
+    // Reading these now forces the linkedSignals that key off resultSources() to reset to their
+    // "new results" defaults before we override them below.
+    this.resultSources();
+    this.selectedResultSources.set(
+      state.search.results
+        .filter((result) => !result.error && result.entries.length > 0)
+        .map((result) => result.source),
+    );
+
+    // Keep synthesized copy / rich-text ids from colliding with the ones already in this card.
+    const usedIds = JSON.stringify(state)
+      .match(/(?:copy-|richtext-)(\d+)/g)
+      ?.map((match) => Number(match.replace(/\D+/g, '')));
+    this.nextCopyId = usedIds?.length ? Math.max(...usedIds) + 1 : 0;
+
+    const fieldsByKey = this.entryFieldsByKey();
+    let dropped = 0;
+
+    for (const side of ['front', 'back'] as const) {
+      const groups: TreeNode[] = [];
+      const checkedKeys = new Set<string>();
+
+      for (const group of state[side]) {
+        const children: TreeNode[] = [];
+        for (const field of group.fields) {
+          if (field.t === 'rich') {
+            const richField: RichTextFieldData = {
+              kind: 'richText',
+              html: signal(field.html),
+              direction: field.direction,
+            };
+            children.push({
+              key: field.instanceKey,
+              data: {
+                instanceKey: field.instanceKey,
+                field: richField,
+                isCopy: field.isCopy,
+              } satisfies PlacedField,
+            });
+            continue;
+          }
+          const entryField = fieldsByKey.get(field.key);
+          if (!entryField) {
+            dropped++;
+            continue;
+          }
+          children.push({
+            key: field.instanceKey,
+            data: {
+              instanceKey: field.instanceKey,
+              field: entryField,
+              isCopy: field.isCopy,
+            } satisfies PlacedField,
+          });
+          if (!field.isCopy) {
+            checkedKeys.add(field.key);
+          }
+        }
+        if (children.length > 0) {
+          groups.push({
+            key: group.key,
+            data: { isGroup: true } satisfies OrderGroupData,
+            children,
+          });
+        }
+      }
+
+      this.orderBySide[side].set(groups);
+      this.recomputeTreeSelection(side, checkedKeys);
+      this.expandedResultSourcesBySide[side].set([...this.resultSources()]);
+    }
+
+    this.editDroppedFields.set(dropped);
+  }
+
+  // --- Serialize the current editing state ------------------------------------------------------
+
+  private serializeState(): CardState {
+    const search = this.loadedResults() ??
+      this.searchResource.value() ?? { word: this.submittedTerm(), results: [] };
+    return {
+      v: CARD_STATE_VERSION,
+      language: this.selectedLanguage(),
+      word: this.submittedTerm(),
+      sources: search.results.map((result) => result.source),
+      search,
+      front: this.serializeGroups('front'),
+      back: this.serializeGroups('back'),
+    };
+  }
+
+  private serializeGroups(side: CardSide): SerializedGroup[] {
+    return this.orderBySide[side]().map((group) => ({
+      key: group.key!,
+      fields: (group.children ?? []).map((child) => {
+        const placed = child.data as PlacedField;
+        if (placed.field.kind === 'richText') {
+          return {
+            t: 'rich' as const,
+            instanceKey: placed.instanceKey,
+            isCopy: placed.isCopy,
+            html: placed.field.html(),
+            direction: placed.field.direction,
+          };
+        }
+        return {
+          t: 'entry' as const,
+          instanceKey: placed.instanceKey,
+          isCopy: placed.isCopy,
+          // An original's instanceKey IS its results-tree key; a copy is that key + "-copy-N".
+          key: placed.instanceKey.replace(/(-copy-\d+)+$/, ''),
+        };
+      }),
+    }));
+  }
+
+  // --- Add to / save in Anki -------------------------------------------------------------------
 
   protected readonly addingToAnki = signal(false);
-  // Outcome of the last add, shown under the toolbar until the next attempt.
+  // Outcome of the last add/save, shown under the toolbar until the next attempt.
   protected readonly addResult = signal<
-    { ok: true; noteId: number } | { ok: false; message: string } | null
+    { ok: true; noteId: number; saved: boolean } | { ok: false; message: string } | null
   >(null);
 
   // Needs a deck and something on BOTH sides - a one-sided card isn't worth sending.
@@ -1138,19 +1318,43 @@ export class CardNew {
 
     this.addingToAnki.set(true);
     this.addResult.set(null);
+    const front = renderCardSide(this.orderGroupsFor('front'));
+    const back = renderCardSide(this.orderGroupsFor('back'));
+    const state = encodeState(this.serializeState());
+    const editingId = this.editingNoteId();
+
     try {
-      const noteId = await this.ankiModelService.addNote(
-        this.selectedLanguage(),
-        renderCardSide(this.orderGroupsFor('front')),
-        renderCardSide(this.orderGroupsFor('back')),
-        deckName,
-      );
-      this.addResult.set({ ok: true, noteId });
+      if (editingId !== null) {
+        await this.ankiModelService.updateNote(
+          this.selectedLanguage(),
+          editingId,
+          this.editCardIds(),
+          front,
+          back,
+          state,
+          deckName,
+        );
+        this.addResult.set({ ok: true, noteId: editingId, saved: true });
+      } else {
+        const noteId = await this.ankiModelService.addNote(
+          this.selectedLanguage(),
+          front,
+          back,
+          deckName,
+          state,
+        );
+        this.addResult.set({ ok: true, noteId, saved: false });
+      }
     } catch (error) {
       this.addResult.set({ ok: false, message: (error as Error).message });
     } finally {
       this.addingToAnki.set(false);
     }
+  }
+
+  protected editAddedCard(noteId: number): void {
+    this.addResult.set(null);
+    void this.router.navigate(['/cards', noteId, 'edit']);
   }
 
   protected showAddedInAnki(noteId: number): void {

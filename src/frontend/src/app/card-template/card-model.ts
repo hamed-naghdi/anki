@@ -2,11 +2,13 @@ import { LANGUAGES } from '../core/dictionary-api';
 
 /**
  * The app owns one Anki note type per language - "En-Dictionary", later "De-Dictionary" - so each
- * language's card styling can diverge without touching the others. Only Front and Back fields; the
- * whole side is a pre-rendered HTML blob from render-card.ts, so there's nothing to edit per-field
- * in Anki's own editor.
+ * language's card styling can diverge without touching the others.
+ *
+ * `Front`/`Back` are pre-rendered HTML blobs from render-card.ts - nothing to edit per-field in
+ * Anki's own editor. `State` is a hidden field (the card templates never render it) holding the
+ * base64 editor state (see card-state.ts) so the card can be reopened and edited in card-new.
  */
-export const MODEL_FIELDS = ['Front', 'Back'] as const;
+export const MODEL_FIELDS = ['Front', 'Back', 'State'] as const;
 
 const FRONT_TEMPLATE = '{{Front}}';
 const BACK_TEMPLATE = '{{FrontSide}}\n<hr id="answer">\n{{Back}}';

@@ -1,3 +1,11 @@
+@if (editingNoteId() !== null) {
+  <div class="flex items-center gap-2 text-sm">
+    <a routerLink="/cards" class="text-[var(--p-text-muted-color)] hover:underline">Cards</a>
+    <span class="text-[var(--p-text-muted-color)]">/</span>
+    <span class="font-medium">Editing “{{ submittedTerm() }}”</span>
+  </div>
+}
+
 <div class="flex flex-wrap items-center gap-3">
   <div class="flex flex-col gap-1">
     <p-select
@@ -7,6 +15,7 @@
       optionDisabled="disabled"
       [ngModel]="selectedLanguage()"
       (ngModelChange)="selectedLanguage.set($event)"
+      [disabled]="editingNoteId() !== null"
       class="w-20"
     />
   </div>
@@ -25,6 +34,7 @@
         [ngModel]="searchTerm()"
         (ngModelChange)="searchTerm.set($event)"
         (keyup.enter)="onSearch()"
+        [disabled]="editingNoteId() !== null"
       />
       @if (searchTerm()) {
         <p-inputicon (click)="onClearSearch()" class="cursor-pointer">
@@ -72,28 +82,47 @@
     type="button"
     class="ml-auto"
     [loading]="addingToAnki()"
-    [disabled]="!canAddToAnki() || addingToAnki()"
+    [disabled]="!canAddToAnki() || addingToAnki() || editLoading()"
     [title]="
       canAddToAnki()
-        ? 'Add this card to the selected deck'
+        ? (editingNoteId() !== null ? 'Save changes to this card' : 'Add this card to the selected deck')
         : 'Pick a deck and put at least one thing on both Front and Back'
     "
     (click)="addToAnki()"
   >
-    <svg data-p-icon="plus" class="size-4"></svg>Add to Anki
+    <svg data-p-icon="plus" class="size-4"></svg>{{ editingNoteId() !== null ? 'Save changes' : 'Add to Anki' }}
   </button>
 </div>
+
+@if (editLoading()) {
+  <p-message severity="info" class="mt-2 block">Loading card…</p-message>
+} @else if (editError(); as err) {
+  <p-message severity="error" class="mt-2 block">{{ err }}</p-message>
+} @else if (editDroppedFields() > 0) {
+  <p-message severity="warn" class="mt-2 block">
+    {{ editDroppedFields() }} field(s) couldn’t be restored — the dictionary result changed since this
+    card was saved. Saving now will drop them.
+  </p-message>
+}
 
 @if (addResult(); as result) {
   @if (result.ok) {
     <p-message severity="success" class="mt-2 block">
-      Added to {{ deckService.selectedDeck() }} as a {{ languageLabel() }}-Dictionary note.
+      {{ result.saved ? 'Saved' : 'Added' }} to {{ deckService.selectedDeck() }} as a
+      {{ languageLabel() }}-Dictionary note.
       <button pButton link type="button" class="p-0! align-baseline" (click)="showAddedInAnki(result.noteId)">
         Show in Anki
       </button>
+      @if (!result.saved) {
+        <button pButton link type="button" class="p-0! align-baseline" (click)="editAddedCard(result.noteId)">
+          Edit
+        </button>
+      }
     </p-message>
   } @else {
-    <p-message severity="error" class="mt-2 block">Couldn’t add the card: {{ result.message }}</p-message>
+    <p-message severity="error" class="mt-2 block">
+      Couldn’t {{ editingNoteId() !== null ? 'save' : 'add' }} the card: {{ result.message }}
+    </p-message>
   }
 }
 

@@ -36,11 +36,16 @@
                     </button>
                   </p-sidebar-menu-item>
                   <p-sidebar-menu-item>
-                    <button pSidebarMenuButton>
-                      <svg data-p-icon="inbox"></svg>
-                      <span>Inbox</span>
+                    <button
+                      pSidebarMenuButton
+                      routerLink="/cards"
+                      routerLinkActive
+                      #cardsLink="routerLinkActive"
+                      [isActive]="cardsLink.isActive"
+                    >
+                      <svg data-p-icon="clone"></svg>
+                      <span>Cards</span>
                     </button>
-                    <p-sidebar-menu-badge>5</p-sidebar-menu-badge>
                   </p-sidebar-menu-item>
                   <p-sidebar-menu-item>
                     <button pSidebarMenuButton>
