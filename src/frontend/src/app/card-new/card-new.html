@@ -67,24 +67,35 @@
     }
   </div>
 
-  <div class="flex flex-col gap-1">
-    <p-select
-      [options]="noteTypeService.noteTypes()"
-      [ngModel]="noteTypeService.selectedNoteType()"
-      (ngModelChange)="noteTypeService.selectNoteType($event)"
-      [loading]="noteTypeService.isLoading()"
-      placeholder="Note type"
-      class="w-64"
-    />
-    @if (noteTypeService.error(); as noteTypeError) {
-      <span class="text-xs text-red-500">{{ noteTypeError }}</span>
-    }
-  </div>
-
-  <button pButton type="button" class="ml-auto" disabled title="Coming soon">
+  <button
+    pButton
+    type="button"
+    class="ml-auto"
+    [loading]="addingToAnki()"
+    [disabled]="!canAddToAnki() || addingToAnki()"
+    [title]="
+      canAddToAnki()
+        ? 'Add this card to the selected deck'
+        : 'Pick a deck and put at least one thing on both Front and Back'
+    "
+    (click)="addToAnki()"
+  >
     <svg data-p-icon="plus" class="size-4"></svg>Add to Anki
   </button>
 </div>
+
+@if (addResult(); as result) {
+  @if (result.ok) {
+    <p-message severity="success" class="mt-2 block">
+      Added to {{ deckService.selectedDeck() }} as a {{ languageLabel() }}-Dictionary note.
+      <button pButton link type="button" class="p-0! align-baseline" (click)="showAddedInAnki(result.noteId)">
+        Show in Anki
+      </button>
+    </p-message>
+  } @else {
+    <p-message severity="error" class="mt-2 block">Couldn’t add the card: {{ result.message }}</p-message>
+  }
+}
 
 <!--
   Renders a single field's value (no "Label:" prefix) - shared by the results tree's leaf rows and
@@ -278,18 +289,18 @@
     }
     @case ('example') {
       @if (exampleFor(field); as example) {
-        <span class="inline-flex items-start gap-1.5 text-sm">
+        <span class="inline-flex items-baseline gap-1.5 text-sm">
           @if (example.audioUrl; as audioUrl) {
             <button
               type="button"
-              class="mt-0.5 inline-flex shrink-0 items-center rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
+              class="-mb-px inline-flex shrink-0 items-center rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
               title="Play example"
               (click)="playAudio(audioUrl, $event)"
             >
               <svg data-p-icon="volume-up" class="size-3.5 text-[var(--p-text-muted-color)]"></svg>
             </button>
           } @else {
-            <span class="mt-0.5 inline-flex size-3.5 shrink-0 items-center justify-center text-[var(--p-text-muted-color)]" aria-hidden="true">•</span>
+            <span class="-mb-px inline-flex size-3.5 shrink-0 items-center justify-center text-[var(--p-text-muted-color)]" aria-hidden="true">•</span>
           }
           <span class="italic text-[var(--p-text-color)]">
             @if (example.pattern; as pattern) {

@@ -18,6 +18,7 @@ import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { Textarea } from 'primeng/textarea';
@@ -33,7 +34,8 @@ import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
 import { VolumeUp } from '@primeicons/angular/volume-up';
 import { DeckService } from '../core/deck.service';
-import { NoteTypeService } from '../core/note-type.service';
+import { AnkiModelService } from '../core/anki-model.service';
+import { renderCardSide } from '../card-template/render-card';
 import {
   DICTIONARY_SOURCES,
   DictionaryEntry,
@@ -84,12 +86,17 @@ type EntryFieldKind =
 // "Longman:Entry 2:Pronunciation (UK)" when a source returned more than one entry for the search
 // (homographs, or several parts of speech), otherwise just "Longman:Pronunciation (UK)" - with only
 // one entry, the source name alone is unambiguous and the "Entry 1" would be pure noise.
-function buildPath(sourceLabel: string, entryOrdinal: number, entryCount: number, label: string): string {
+function buildPath(
+  sourceLabel: string,
+  entryOrdinal: number,
+  entryCount: number,
+  label: string,
+): string {
   const entryPart = entryCount > 1 ? `${sourceLabel}:Entry ${entryOrdinal}` : sourceLabel;
   return `${entryPart}:${label}`;
 }
 
-interface EntryFieldData {
+export interface EntryFieldData {
   kind: EntryFieldKind;
   label: string;
   entry: DictionaryEntry;
@@ -124,7 +131,7 @@ interface EntryFieldGroup {
 // every keystroke was the original approach, and it replaces the [value] array bound to the reorder
 // p-tree on every keystroke, which tears down and recreates the textarea's DOM each time, stealing
 // focus after every character typed.
-interface RichTextFieldData {
+export interface RichTextFieldData {
   kind: 'richText';
   html: WritableSignal<string>;
   // Fixed at creation (see addRichTextBlock's two variants), not toggled in place - applied to the
@@ -137,7 +144,7 @@ interface RichTextFieldData {
 // What a placed field's `field` can hold - dictionary-derived data, or a user-authored rich-text
 // block. Every place that renders/labels a PlacedField switches on `.kind`, which discriminates the
 // two cleanly since 'richText' never appears in EntryFieldKind.
-type PlacedFieldData = EntryFieldData | RichTextFieldData;
+export type PlacedFieldData = EntryFieldData | RichTextFieldData;
 
 // One placed field inside a side's ordered groups. `instanceKey` is this placement's own identity
 // (a results-tree leaf key for an original, a synthesized `-copy-N` key for a duplicate, or a
@@ -147,7 +154,7 @@ type PlacedFieldData = EntryFieldData | RichTextFieldData;
 // tracked here - it's purely structural (whichever order-tree group node's `children` array this
 // leaf currently sits in), since the user is free to drag any field, original or copy, into any
 // group at any time.
-interface PlacedField {
+export interface PlacedField {
   instanceKey: string;
   field: PlacedFieldData;
   isCopy: boolean;
@@ -184,6 +191,7 @@ interface OrderGroupData {
     Tree,
     TreeSelect,
     FormsModule,
+    Message,
     GripVertical,
     Key,
     Plus,
@@ -208,13 +216,20 @@ interface OrderGroupData {
   providers: [TreeDragDropService],
 })
 export class CardNew {
-  // Decks and note types come directly from Anki via AnkiConnect (no backend involvement).
+  // Decks come directly from Anki via AnkiConnect (no backend involvement). There's no note-type
+  // picker: the app owns one note type per language (En-Dictionary, ...), managed by AnkiModelService.
   protected readonly deckService = inject(DeckService);
-  protected readonly noteTypeService = inject(NoteTypeService);
+  private readonly ankiModelService = inject(AnkiModelService);
 
   protected readonly languages: LanguageOption[] = [...LANGUAGES];
 
   protected readonly selectedLanguage = signal('en');
+
+  protected readonly languageLabel = computed(
+    () =>
+      this.languages.find((language) => language.key === this.selectedLanguage())?.label ??
+      this.selectedLanguage(),
+  );
 
   // Only the sources belonging to whichever language is picked - today that's always both English
   // dictionaries, but this is what lets a future German source (once one exists) not show up while
@@ -236,7 +251,9 @@ export class CardNew {
   // Resets to "everything the current language offers, all checked" whenever the language changes,
   // but stays writable in between so unchecking a source in the dropdown doesn't get fought by this
   // signal.
-  protected readonly selectedSources = linkedSignal(() => this.availableSources().map((source) => source.key));
+  protected readonly selectedSources = linkedSignal(() =>
+    this.availableSources().map((source) => source.key),
+  );
 
   // Separate from searchTerm/selectedSources so a query only fires on Enter - toggling sources in
   // the dropdown must not by itself trigger a new backend request.
@@ -303,7 +320,9 @@ export class CardNew {
   }
 
   protected toggleExpandAll(side: CardSide): void {
-    this.expandedResultSourcesBySide[side].set(this.isAllExpanded(side) ? [] : [...this.visibleResultSources()]);
+    this.expandedResultSourcesBySide[side].set(
+      this.isAllExpanded(side) ? [] : [...this.visibleResultSources()],
+    );
   }
 
   protected onExpandedResultSourcesChange(
@@ -311,7 +330,11 @@ export class CardNew {
     value: string | number | (string | number)[] | null | undefined,
   ): void {
     this.expandedResultSourcesBySide[side].set(
-      Array.isArray(value) ? value.map(String) : value === null || value === undefined ? [] : [String(value)],
+      Array.isArray(value)
+        ? value.map(String)
+        : value === null || value === undefined
+          ? []
+          : [String(value)],
     );
   }
 
@@ -336,7 +359,9 @@ export class CardNew {
           const key = `${result.source}-${index}`;
           return {
             key,
-            label: entry.partOfSpeech ? `${entry.headword} (${entry.partOfSpeech})` : entry.headword,
+            label: entry.partOfSpeech
+              ? `${entry.headword} (${entry.partOfSpeech})`
+              : entry.headword,
             data: entry,
             children: this.entryFieldNodes(key, entry, result.source, index + 1, entryCount),
           };
@@ -374,7 +399,16 @@ export class CardNew {
       return {
         key,
         label,
-        data: { kind, label, entry, entryKey, sourceLabel, entryOrdinal, entryCount, ...extra } satisfies EntryFieldData,
+        data: {
+          kind,
+          label,
+          entry,
+          entryKey,
+          sourceLabel,
+          entryOrdinal,
+          entryCount,
+          ...extra,
+        } satisfies EntryFieldData,
       };
     };
 
@@ -490,7 +524,11 @@ export class CardNew {
   // not one tied to a specific inflection - so this picks that one out of the list the backend
   // sends (which also includes e.g. "past tense"-labelled pronunciations for irregular verbs).
   protected primaryPronunciation(entry: DictionaryEntry): Pronunciation | null {
-    return entry.pronunciations.find((pronunciation) => pronunciation.label === null) ?? entry.pronunciations[0] ?? null;
+    return (
+      entry.pronunciations.find((pronunciation) => pronunciation.label === null) ??
+      entry.pronunciations[0] ??
+      null
+    );
   }
 
   protected britishPhonetic(entry: DictionaryEntry): PhoneticVariant | null {
@@ -502,7 +540,9 @@ export class CardNew {
   }
 
   protected inflectionFormFor(field: EntryFieldData): InflectionForm | null {
-    return field.formIndex !== undefined ? (field.entry.inflectionForms[field.formIndex] ?? null) : null;
+    return field.formIndex !== undefined
+      ? (field.entry.inflectionForms[field.formIndex] ?? null)
+      : null;
   }
 
   protected senseFor(field: EntryFieldData): DictionarySense | null {
@@ -551,13 +591,18 @@ export class CardNew {
         return us ? this.formatIpa(us.ipa) : '';
       }
       case 'keyword':
-        return [field.entry.isKeyword ? 'keyword' : null, field.entry.keywordLevel?.toUpperCase() ?? null]
+        return [
+          field.entry.isKeyword ? 'keyword' : null,
+          field.entry.keywordLevel?.toUpperCase() ?? null,
+        ]
           .filter((part): part is string => !!part)
           .join(' · ');
       case 'frequencyLabels':
         return (field.entry.frequencyLabels ?? []).map((label) => label.code).join(' ');
       case 'inflectionForm':
-        return field.formIndex !== undefined ? (field.entry.inflectionForms[field.formIndex]?.form ?? '') : '';
+        return field.formIndex !== undefined
+          ? (field.entry.inflectionForms[field.formIndex]?.form ?? '')
+          : '';
       case 'senseImage':
         return this.senseFor(field)?.imageUrl ?? '';
       case 'senseDefinition':
@@ -661,9 +706,13 @@ export class CardNew {
     // (PrimeNG's own checkbox propagation), so filtering to keys this map recognizes is enough to
     // land on exactly the real, orderable content leaves - regardless of which level was clicked.
     const fieldsByKey = this.entryFieldsByKey();
-    const checkedKeys = new Set(nodes.map((node) => node.key!).filter((key) => fieldsByKey.has(key)));
+    const checkedKeys = new Set(
+      nodes.map((node) => node.key!).filter((key) => fieldsByKey.has(key)),
+    );
 
-    this.orderBySide[side].update((groups) => this.reconcileOrderTree(groups, checkedKeys, fieldsByKey));
+    this.orderBySide[side].update((groups) =>
+      this.reconcileOrderTree(groups, checkedKeys, fieldsByKey),
+    );
   }
 
   // A side's order tree: a flat list of free-form groups, each holding whichever fields the user
@@ -696,19 +745,20 @@ export class CardNew {
   // own line instead (see stackedFieldsFor). Everything else - grammar/register tags, the
   // definition itself, and SYN/OPP - wraps together on one line in inlineFieldsFor, dictionary-style
   // (e.g. "[transitive] to obtain by paying money SYN buy OPP sell").
-  private static readonly STACKED_FIELD_KINDS: ReadonlySet<PlacedFieldData['kind']> = new Set<PlacedFieldData['kind']>([
-    'inflectionForm',
-    'example',
-    'richText',
-    'senseImage',
-  ]);
+  private static readonly STACKED_FIELD_KINDS: ReadonlySet<PlacedFieldData['kind']> = new Set<
+    PlacedFieldData['kind']
+  >(['inflectionForm', 'example', 'richText', 'senseImage']);
 
   protected inlineFieldsFor(group: TreeNode): PlacedField[] {
-    return this.groupFieldsFor(group).filter((placed) => !CardNew.STACKED_FIELD_KINDS.has(placed.field.kind));
+    return this.groupFieldsFor(group).filter(
+      (placed) => !CardNew.STACKED_FIELD_KINDS.has(placed.field.kind),
+    );
   }
 
   protected stackedFieldsFor(group: TreeNode): PlacedField[] {
-    return this.groupFieldsFor(group).filter((placed) => CardNew.STACKED_FIELD_KINDS.has(placed.field.kind));
+    return this.groupFieldsFor(group).filter((placed) =>
+      CardNew.STACKED_FIELD_KINDS.has(placed.field.kind),
+    );
   }
 
   // Only inflection forms get the extra left gap - definitions/examples stack one-per-line too
@@ -722,8 +772,9 @@ export class CardNew {
   // synonyms/antonyms/examples), so the card preview can print "1", "2"... the way a dictionary
   // numbers its senses - null for groups that aren't a sense at all (headword, inflection forms).
   protected senseNumberFor(group: TreeNode): number | null {
-    const field = this.groupFieldsFor(group).find((placed) => (placed.field as EntryFieldData).senseIndex !== undefined)
-      ?.field as EntryFieldData | undefined;
+    const field = this.groupFieldsFor(group).find(
+      (placed) => (placed.field as EntryFieldData).senseIndex !== undefined,
+    )?.field as EntryFieldData | undefined;
     return field?.senseIndex !== undefined ? field.senseIndex + 1 : null;
   }
 
@@ -744,7 +795,9 @@ export class CardNew {
       const field = inflection.field as EntryFieldData;
       return buildPath(field.sourceLabel, field.entryOrdinal, field.entryCount, 'Inflection forms');
     }
-    const senseField = fields.find((placed) => (placed.field as EntryFieldData).senseIndex !== undefined);
+    const senseField = fields.find(
+      (placed) => (placed.field as EntryFieldData).senseIndex !== undefined,
+    );
     if (senseField) {
       const field = senseField.field as EntryFieldData;
       const sense = this.senseFor(field);
@@ -832,7 +885,11 @@ export class CardNew {
       if (existingGroup) {
         existingGroup.children = [...(existingGroup.children ?? []), ...newChildren];
       } else {
-        nextGroups.push({ key: groupKey, data: { isGroup: true } satisfies OrderGroupData, children: newChildren });
+        nextGroups.push({
+          key: groupKey,
+          data: { isGroup: true } satisfies OrderGroupData,
+          children: newChildren,
+        });
       }
     }
 
@@ -947,7 +1004,10 @@ export class CardNew {
                 direction: source.field.direction,
               } satisfies RichTextFieldData)
             : source.field;
-        const copy: TreeNode = { key: copyKey, data: { instanceKey: copyKey, field: copiedField, isCopy: true } satisfies PlacedField };
+        const copy: TreeNode = {
+          key: copyKey,
+          data: { instanceKey: copyKey, field: copiedField, isCopy: true } satisfies PlacedField,
+        };
         const nextChildren = [...children];
         nextChildren.splice(index + 1, 0, copy);
         return { ...group, children: nextChildren };
@@ -998,7 +1058,11 @@ export class CardNew {
   // Whether dragging this field would move an inflection form out of the single group inflections
   // are always kept in - true for any inflection form being dropped anywhere but back into its own
   // current group, since they're never allowed to split across two groups.
-  private wouldLeaveInflectionGroup(side: CardSide, dragNode: TreeNode, targetGroup: TreeNode): boolean {
+  private wouldLeaveInflectionGroup(
+    side: CardSide,
+    dragNode: TreeNode,
+    targetGroup: TreeNode,
+  ): boolean {
     const dragField = (dragNode.data as PlacedField).field;
     if (dragField.kind !== 'inflectionForm') {
       return false;
@@ -1045,7 +1109,52 @@ export class CardNew {
     // PrimeNG mutates the bound array in place (splices dragNode out of its old parent's children
     // and into the new one) - republish a fresh top-level reference so change detection re-renders,
     // and drop any group the move left with zero fields.
-    this.orderBySide[side].update((groups) => groups.filter((group) => (group.children?.length ?? 0) > 0));
+    this.orderBySide[side].update((groups) =>
+      groups.filter((group) => (group.children?.length ?? 0) > 0),
+    );
+  }
+
+  // --- Add to Anki -------------------------------------------------------------------------------
+
+  protected readonly addingToAnki = signal(false);
+  // Outcome of the last add, shown under the toolbar until the next attempt.
+  protected readonly addResult = signal<
+    { ok: true; noteId: number } | { ok: false; message: string } | null
+  >(null);
+
+  // Needs a deck and something on BOTH sides - a one-sided card isn't worth sending.
+  protected readonly canAddToAnki = computed(
+    () =>
+      !!this.deckService.selectedDeck() &&
+      this.orderGroupsFor('front').length > 0 &&
+      this.orderGroupsFor('back').length > 0,
+  );
+
+  protected async addToAnki(): Promise<void> {
+    const deckName = this.deckService.selectedDeck();
+    if (!deckName || this.addingToAnki() || !this.canAddToAnki()) {
+      return;
+    }
+
+    this.addingToAnki.set(true);
+    this.addResult.set(null);
+    try {
+      const noteId = await this.ankiModelService.addNote(
+        this.selectedLanguage(),
+        renderCardSide(this.orderGroupsFor('front')),
+        renderCardSide(this.orderGroupsFor('back')),
+        deckName,
+      );
+      this.addResult.set({ ok: true, noteId });
+    } catch (error) {
+      this.addResult.set({ ok: false, message: (error as Error).message });
+    } finally {
+      this.addingToAnki.set(false);
+    }
+  }
+
+  protected showAddedInAnki(noteId: number): void {
+    void this.ankiModelService.showInBrowser(noteId);
   }
 
   protected onSearch(): void {

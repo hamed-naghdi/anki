@@ -1,0 +1,61 @@
+@import 'tailwindcss' source(none);
+@source './render-card.ts';
+
+/* Anki renders card templates with only this stylesheet - the dark trigger is the `nightMode`
+   class Anki puts on <body>, not `prefers-color-scheme` (that's what the in-app preview uses). */
+@custom-variant dark (&:where(.nightMode, .nightMode *));
+
+@layer base {
+  /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
+     AnkiModelService reads it back from the note type's styling to decide when to re-push. */
+  .pd-card {
+    --pd-style-version: 2;
+
+    /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
+       content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so the
+       `text-[var(--p-*)]` utilities the preview uses render the same here. */
+    --p-text-color: #334155;
+    --p-text-muted-color: #64748b;
+    --p-content-border-color: #e2e8f0;
+
+    /* The primeicons SVGs the preview renders inline, as CSS masks instead - render-card.ts only
+       emits `<span class="pd-i pd-i-<name>">`, so a card with many audio buttons stays small. The
+       shape is masked and filled with `currentColor`, so the `text-*` colour utilities still work. */
+    --pd-i-volume-up: url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2020%2020%27%3E%3Cpath%20d=%27M10.5312%202.41404C10.7564%202.23394%2011.0653%202.19931%2011.3252%202.3242C11.5849%202.44915%2011.75%202.7118%2011.75%202.99998V17C11.75%2017.2882%2011.5849%2017.5508%2011.3252%2017.6758C11.0654%2017.8006%2010.7564%2017.766%2010.5312%2017.5859L5.73633%2013.75H1C0.585793%2013.75%200.250011%2013.4142%200.25%2013V6.99998C0.25%206.58577%200.585786%206.24998%201%206.24998H5.73633L10.5312%202.41404ZM15.9639%204.11717C16.2743%203.84347%2016.7484%203.87338%2017.0225%204.18357C19.9929%207.54757%2019.9912%2012.4525%2017.0225%2015.8252C16.7488%2016.1359%2016.2757%2016.166%2015.9648%2015.8926C15.654%2015.6189%2015.6238%2015.1448%2015.8975%2014.834C18.3681%2012.0268%2018.3665%207.97156%2015.8975%205.17576C15.6237%204.86528%2015.6536%204.39121%2015.9639%204.11717ZM6.46875%207.58592C6.33577%207.6923%206.1703%207.74998%206%207.74998H1.75V12.25H6C6.1703%2012.25%206.33576%2012.3077%206.46875%2012.414L10.25%2015.4385V4.56053L6.46875%207.58592ZM13.6602%206.77049C13.9912%206.52209%2014.4612%206.58896%2014.71%206.9199C16.0908%208.75756%2016.0888%2011.2339%2014.7109%2013.0791C14.4631%2013.4106%2013.9929%2013.479%2013.6611%2013.2314C13.3293%2012.9836%2013.262%2012.5135%2013.5098%2012.1816C14.4914%2010.867%2014.4893%209.12246%2013.5107%207.82029C13.2621%207.48919%2013.3291%207.01928%2013.6602%206.77049Z%27/%3E%3C/svg%3E');
+    --pd-i-key: url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2020%2020%27%3E%3Cpath%20d=%27M13%201.25C16.1756%201.25004%2018.75%203.82439%2018.75%207.00001C18.75%2010.1756%2016.1756%2012.75%2013%2012.75C11.6821%2012.75%2010.4688%2012.3053%209.49901%2011.5596C9.49582%2011.5629%209.49349%2011.5671%209.49022%2011.5703L7.06054%2014L8.53026%2015.4697C8.82311%2015.7626%208.82311%2016.2374%208.53026%2016.5303C8.23738%2016.8232%207.76261%2016.8231%207.46972%2016.5303L5.99999%2015.0606L5.06054%2016L6.53026%2017.4697C6.82311%2017.7626%206.82311%2018.2374%206.53026%2018.5303C6.23738%2018.8232%205.76261%2018.8231%205.46972%2018.5303L3.99999%2017.0606L3.03026%2018.0303C2.73738%2018.3232%202.26261%2018.3231%201.96972%2018.0303C1.67685%2017.7374%201.67683%2017.2626%201.96972%2016.9697L8.43944%2010.5C7.69421%209.53042%207.24999%208.31743%207.24999%207.00001C7.24999%203.82437%209.82435%201.25%2013%201.25ZM13%202.75C10.6528%202.75%208.74999%204.65279%208.74999%207.00001C8.74999%209.34722%2010.6528%2011.25%2013%2011.25C15.3472%2011.25%2017.25%209.34719%2017.25%207.00001C17.25%204.65282%2015.3472%202.75004%2013%202.75Z%27/%3E%3C/svg%3E');
+
+    /* Beat Anki's default `.card { font-family: arial; font-size: 20px; text-align: center }`. */
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    text-align: left;
+    color: var(--p-text-color);
+  }
+
+  :where(.nightMode, .nightMode *) .pd-card,
+  .pd-card:where(.nightMode, .nightMode *) {
+    --p-text-color: #ffffff;
+    --p-text-muted-color: #a1a1aa;
+    --p-content-border-color: #3f3f46;
+  }
+
+  .pd-card .pd-i {
+    display: inline-block;
+    flex-shrink: 0;
+    background-color: currentColor;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+  .pd-card .pd-i-volume-up {
+    -webkit-mask-image: var(--pd-i-volume-up);
+    mask-image: var(--pd-i-volume-up);
+  }
+  .pd-card .pd-i-key {
+    -webkit-mask-image: var(--pd-i-key);
+    mask-image: var(--pd-i-key);
+  }
+}

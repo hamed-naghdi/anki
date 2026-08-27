@@ -52,7 +52,12 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              {
+                "input": "src/app/card-template/card.css",
+                "bundleName": "pd-card",
+                "inject": false
+              }
             ]
           },
           "configurations": {
@@ -69,7 +74,7 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "media"
             },
             "development": {
               "optimization": false,

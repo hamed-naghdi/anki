@@ -12,7 +12,7 @@ export interface PersistedListResource {
 }
 
 /**
- * Shared behaviour behind DeckService/NoteTypeService: fetch a string list directly from
+ * Shared behaviour behind DeckService: fetch a string list directly from
  * AnkiConnect via httpResource, and track a "current" selection persisted in localStorage -
  * falling back to the first item once loaded, and recovering gracefully if the persisted value no
  * longer exists in the list (e.g. a deck was renamed/deleted in Anki since).
