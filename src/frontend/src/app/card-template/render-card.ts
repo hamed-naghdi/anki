@@ -5,22 +5,19 @@ import type { EntryFieldData, PlacedField, PlacedFieldData } from '../card-new/c
 /**
  * Renders a card side as a self-contained HTML string for Anki's Front / Back fields.
  *
- * This is a hand-kept MIRROR of card-new.html's `#groupContent` and `#fieldChip` templates: same
- * markup and the same Tailwind class strings (written as literals so `@source './render-card.ts'`
- * in card.css picks them up). The in-app preview keeps rendering from those Angular templates -
- * this exists only because that markup leans on the app's Tailwind build and PrimeNG theme, neither
- * of which exists inside Anki's webview.
+ * This mirrors card-new.html's `#groupContent` / `#fieldChip` templates *structurally* (same
+ * groups, same fields, same conditions) but NOT visually: the preview renders from Tailwind
+ * utility classes, while this emits small, stable `pd-*` class names with all the actual styling
+ * living in card.css. That split matters because Front/Back are baked HTML blobs stored per-note
+ * (see AnkiModelService.addNote/updateNote) - only the shared note-type styling can be repushed to
+ * every existing card at once. Utility classes baked into that HTML would freeze each note's look
+ * at whatever render-card.ts produced when it was added; semantic classes mean a card.css edit
+ * (bumping `--pd-style-version`) restyles every card ever created, without touching a single note.
  *
- * Three deliberate departures from the templates: the primeicons `<svg>`s become `pd-i` spans that
- * card.css fills from a CSS mask (keeps a card with many audio buttons small), and the example row
- * uses `items-baseline` + `-mb-px` on the lead instead of `items-start` + `mt-0.5` (the speaker was
- * sitting a few px low). The `#fieldChip` template carries the same example-alignment fix. The
- * stacked-fields gap (renderGroup's stackedHtml) is tighter here than in #groupContent - the wider
- * gap reads fine in the in-app preview but looked too airy between examples in an actual Anki
- * review, so only this rendering was tightened.
- *
- * When you change the preview templates (or the helpers they call), change this to match and bump
- * `--pd-style-version` in card.css so the next "Add to Anki" re-pushes the styling.
+ * When you change what a group/field looks like, only card.css needs to change - this file only
+ * needs to change when the *shape* of what's rendered changes (a new field kind, a new condition).
+ * Bump `--pd-style-version` in card.css whenever either file changes in a way that affects the
+ * rendered card, so the next "Add to Anki" re-pushes the styling.
  */
 
 // Mirror of CardNew.STACKED_FIELD_KINDS - prose-like kinds that each get their own line rather
@@ -68,15 +65,15 @@ function isFrequencyDots(code: string): boolean {
   return code.includes('●') || code.includes('○');
 }
 
-// Mirror of CardNew.cefrLevelClasses.
-function cefrLevelClasses(level: string): string {
+// Mirror of CardNew.cefrLevelClasses, translated to the CEFR band card.css keys off of.
+function cefrLevelModifier(level: string): 'a' | 'b' | 'c' {
   switch (level.charAt(0).toLowerCase()) {
     case 'a':
-      return 'bg-emerald-600/90 dark:bg-emerald-500/80';
+      return 'a';
     case 'b':
-      return 'bg-sky-600/90 dark:bg-sky-500/80';
+      return 'b';
     default:
-      return 'bg-violet-600/90 dark:bg-violet-500/80';
+      return 'c';
   }
 }
 
@@ -96,13 +93,13 @@ function inflectionOf(field: EntryFieldData) {
     : null;
 }
 
-// The preview renders these as inline primeicons `<svg>`; here they're a `pd-i pd-i-<name>` span
-// that card.css fills from a CSS-mask (see card.css) - so a card with a dozen audio buttons carries
-// ~40 chars each instead of the ~600-char SVG path repeated. `classes` still carries the size and
-// `text-*` colour utilities, which the mask picks up via `background-color: currentColor`.
-function icon(name: 'volume-up' | 'key', classes: string, title?: string): string {
+// The preview renders these as inline primeicons `<svg>`s; here they're a `pd-i pd-i-<name>` span
+// that card.css fills from a CSS mask (see card.css) - so a card with a dozen audio buttons carries
+// ~30 chars each instead of the ~600-char SVG path repeated. `modifier` picks the size/colour from
+// card.css (e.g. `uk`, `us`, `key`, `muted`) instead of carrying utility classes.
+function icon(name: 'volume-up' | 'key', modifier: string, title?: string): string {
   const titleAttr = title ? ` title="${esc(title)}"` : '';
-  return `<span class="pd-i pd-i-${name} ${classes}" aria-hidden="true"${titleAttr}></span>`;
+  return `<span class="pd-i pd-i-${name} pd-i-${modifier}" aria-hidden="true"${titleAttr}></span>`;
 }
 
 // Mirror of CardNew.playAudio: play a remote clip, swallow the click. Works in Anki's webview too.
@@ -113,23 +110,19 @@ function playAudio(url: string): string {
 function pronunciationAudioButton(url: string, side: 'uk' | 'us'): string {
   const label = side === 'uk' ? 'UK' : 'US';
   const title = side === 'uk' ? 'Play British pronunciation' : 'Play American pronunciation';
-  const iconColor =
-    side === 'uk' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400';
   return (
-    `<button type="button" class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10" ` +
-    `title="${title}" onclick="${playAudio(url)}">${icon('volume-up', `size-3 ${iconColor}`)}${label}</button>`
+    `<button type="button" class="pd-audio-btn" title="${title}" onclick="${playAudio(url)}">` +
+    `${icon('volume-up', side)}${label}</button>`
   );
 }
 
 // Compact pronunciation used inside an inflection form: `{ipa} [UK] [US]`, no title on the buttons.
 function inflectionPronunciation(variant: PhoneticVariant, side: 'uk' | 'us'): string {
   const label = side === 'uk' ? 'UK' : 'US';
-  const iconColor =
-    side === 'uk' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400';
   const audio = variant.audioUrl
-    ? `<button type="button" class="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--p-text-muted-color)] hover:bg-black/5 dark:hover:bg-white/10" onclick="${playAudio(variant.audioUrl)}">${icon('volume-up', `size-3 ${iconColor}`)}${label}</button>`
+    ? `<button type="button" class="pd-audio-btn" onclick="${playAudio(variant.audioUrl)}">${icon('volume-up', side)}${label}</button>`
     : '';
-  return `<span class="inline-flex items-center gap-1 text-xs text-[var(--p-text-muted-color)]">${esc(formatIpa(variant.ipa))}${audio}</span>`;
+  return `<span class="pd-inflection-ipa">${esc(formatIpa(variant.ipa))}${audio}</span>`;
 }
 
 function keywordBadges(
@@ -137,9 +130,9 @@ function keywordBadges(
   level: string | null | undefined,
   keyTitle: string,
 ): string {
-  const key = isKeyword ? icon('key', 'size-3 text-amber-500 dark:text-amber-400', keyTitle) : '';
+  const key = isKeyword ? icon('key', 'keyword', keyTitle) : '';
   const badge = level
-    ? `<span class="rounded px-1 text-[10px] font-bold uppercase text-white ${cefrLevelClasses(level)}" title="CEFR level">${esc(level)}</span>`
+    ? `<span class="pd-badge pd-badge-cefr pd-badge-cefr-${cefrLevelModifier(level)}" title="CEFR level">${esc(level)}</span>`
     : '';
   return key + badge;
 }
@@ -148,50 +141,48 @@ function keywordBadges(
 function renderChip(field: PlacedFieldData): string {
   switch (field.kind) {
     case 'headword':
-      return `<span class="text-[var(--p-text-color)]">${esc(field.entry.headword)}</span>`;
+      return `<span class="pd-text">${esc(field.entry.headword)}</span>`;
     case 'partOfSpeech':
-      return `<span class="italic text-[var(--p-text-color)]">${esc(field.entry.partOfSpeech ?? '')}</span>`;
+      return `<span class="pd-pos">${esc(field.entry.partOfSpeech ?? '')}</span>`;
     case 'homographNumber':
-      return `<span class="text-[var(--p-text-color)]">${esc(field.entry.homographNumber ?? '')}</span>`;
+      return `<span class="pd-text">${esc(field.entry.homographNumber ?? '')}</span>`;
     case 'grammar':
-      return `<span class="rounded border border-slate-400/40 px-1 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:border-slate-400/40 dark:text-slate-300">${esc(field.entry.grammar ?? '')}</span>`;
+      return `<span class="pd-badge pd-badge-outline">${esc(field.entry.grammar ?? '')}</span>`;
     case 'pronunciation-british': {
       const uk = britishPhonetic(field.entry);
       if (!uk) return '';
       const audio = uk.audioUrl ? pronunciationAudioButton(uk.audioUrl, 'uk') : '';
-      return `<span class="inline-flex items-center gap-1.5 text-sm text-[var(--p-text-muted-color)]">${esc(formatIpa(uk.ipa))}${audio}</span>`;
+      return `<span class="pd-pronunciation">${esc(formatIpa(uk.ipa))}${audio}</span>`;
     }
     case 'pronunciation-american': {
       const us = americanPhonetic(field.entry);
       if (!us) return '';
       const audio = us.audioUrl ? pronunciationAudioButton(us.audioUrl, 'us') : '';
-      return `<span class="inline-flex items-center gap-1.5 text-sm text-[var(--p-text-muted-color)]">${esc(formatIpa(us.ipa))}${audio}</span>`;
+      return `<span class="pd-pronunciation">${esc(formatIpa(us.ipa))}${audio}</span>`;
     }
     case 'keyword':
-      return `<span class="inline-flex items-center gap-1.5">${keywordBadges(field.entry.isKeyword, field.entry.keywordLevel, 'Oxford 3000/5000 keyword')}</span>`;
+      return `<span class="pd-badge-group">${keywordBadges(field.entry.isKeyword, field.entry.keywordLevel, 'Oxford 3000/5000 keyword')}</span>`;
     case 'frequencyLabels': {
       const labels = field.entry.frequencyLabels ?? [];
       const inner = labels
         .map((label) => {
           const title = label.description ? ` title="${esc(label.description)}"` : '';
           return isFrequencyDots(label.code)
-            ? `<span class="text-xs tracking-tighter text-[#b3453f] dark:text-[#e08a86]"${title}>${esc(label.code)}</span>`
-            : `<span class="rounded border border-[#b3453f]/40 px-1 text-[10px] font-bold uppercase text-[#b3453f] dark:border-[#e08a86]/40 dark:text-[#e08a86]"${title}>${esc(label.code)}</span>`;
+            ? `<span class="pd-freq-dots"${title}>${esc(label.code)}</span>`
+            : `<span class="pd-badge pd-badge-freq"${title}>${esc(label.code)}</span>`;
         })
         .join('');
-      return `<span class="inline-flex items-center gap-1.5">${inner}</span>`;
+      return `<span class="pd-badge-group">${inner}</span>`;
     }
     case 'inflectionForm': {
       const form = inflectionOf(field);
       if (!form) return '';
-      const label = field.label
-        ? `<span class="text-xs font-medium text-[var(--p-text-muted-color)]">${esc(field.label)}:</span>`
-        : '';
+      const label = field.label ? `<span class="pd-inflection-label">${esc(field.label)}:</span>` : '';
       const uk = form.pronunciation?.british?.[0];
       const us = form.pronunciation?.american?.[0];
       return (
-        `<span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1">${label}` +
-        `<span class="text-[var(--p-text-color)]">${esc(form.form)}</span>` +
+        `<span class="pd-inflection">${label}` +
+        `<span class="pd-text">${esc(form.form)}</span>` +
         `${uk ? inflectionPronunciation(uk, 'uk') : ''}${us ? inflectionPronunciation(us, 'us') : ''}</span>`
       );
     }
@@ -199,66 +190,58 @@ function renderChip(field: PlacedFieldData): string {
       const sense = senseOf(field);
       if (!sense?.imageUrl) return '';
       const alt = sense.definition ?? field.entry.headword;
-      return `<img src="${attrUrl(sense.imageUrl)}" alt="${esc(alt)}" class="h-16 w-auto rounded border border-[var(--p-content-border-color)] object-contain" />`;
+      return `<img src="${attrUrl(sense.imageUrl)}" alt="${esc(alt)}" class="pd-sense-image" />`;
     }
     case 'senseDefinition': {
       const sense = senseOf(field);
-      return sense
-        ? `<span class="text-[var(--p-text-color)]">${esc(sense.definition ?? '')}</span>`
-        : '';
+      return sense ? `<span class="pd-text">${esc(sense.definition ?? '')}</span>` : '';
     }
     case 'senseKeyword': {
       const sense = senseOf(field);
       if (!sense) return '';
-      return `<span class="relative top-1 inline-flex items-center gap-1">${keywordBadges(sense.isKeyword, sense.cefrLevel, 'Oxford 3000/5000 keyword sense')}</span>`;
+      return `<span class="pd-badge-group pd-badge-group-raised">${keywordBadges(sense.isKeyword, sense.cefrLevel, 'Oxford 3000/5000 keyword sense')}</span>`;
     }
     case 'senseGrammar': {
       const grammar = senseOf(field)?.grammar;
-      return grammar
-        ? `<span class="rounded border border-slate-400/40 px-1 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:border-slate-400/40 dark:text-slate-300">${esc(grammar)}</span>`
-        : '';
+      return grammar ? `<span class="pd-badge pd-badge-outline">${esc(grammar)}</span>` : '';
     }
     case 'senseRegister': {
       const register = senseOf(field)?.register;
-      return register
-        ? `<span class="rounded border border-amber-500/40 px-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-400/40 dark:text-amber-300">${esc(register)}</span>`
-        : '';
+      return register ? `<span class="pd-badge pd-badge-register">${esc(register)}</span>` : '';
     }
     case 'senseSynonyms': {
       const sense = senseOf(field);
       if (!sense?.synonyms.length) return '';
-      return `<span class="text-xs"><span class="mr-1 rounded border border-blue-500/40 px-1 text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:border-blue-400/40 dark:text-blue-300">Syn</span><span class="text-[var(--p-text-color)]">${esc(sense.synonyms.join(', '))}</span></span>`;
+      return `<span class="pd-relation"><span class="pd-badge pd-badge-syn">Syn</span><span class="pd-text">${esc(sense.synonyms.join(', '))}</span></span>`;
     }
     case 'senseAntonyms': {
       const sense = senseOf(field);
       if (!sense?.antonyms.length) return '';
-      return `<span class="text-xs"><span class="mr-1 rounded border border-rose-500/40 px-1 text-[10px] font-bold uppercase tracking-wide text-rose-600 dark:border-rose-400/40 dark:text-rose-300">Opp</span><span class="text-[var(--p-text-color)]">${esc(sense.antonyms.join(', '))}</span></span>`;
+      return `<span class="pd-relation"><span class="pd-badge pd-badge-ant">Opp</span><span class="pd-text">${esc(sense.antonyms.join(', '))}</span></span>`;
     }
     case 'example': {
       const example = exampleOf(field);
       if (!example) return '';
       const lead = example.audioUrl
-        ? `<button type="button" class="-mb-px inline-flex shrink-0 items-center rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10" title="Play example" onclick="${playAudio(example.audioUrl)}">${icon('volume-up', 'size-3.5 text-[var(--p-text-muted-color)]')}</button>`
-        : `<span class="-mb-px inline-flex size-3.5 shrink-0 items-center justify-center text-[var(--p-text-muted-color)]" aria-hidden="true">•</span>`;
+        ? `<button type="button" class="pd-example-lead" title="Play example" onclick="${playAudio(example.audioUrl)}">${icon('volume-up', 'muted')}</button>`
+        : `<span class="pd-example-lead pd-example-bullet" aria-hidden="true">&bull;</span>`;
       const pattern = example.pattern
-        ? `<span class="text-blue-300 mr-1 not-italic font-semibold">${esc(example.pattern)}:</span>`
+        ? `<span class="pd-example-pattern">${esc(example.pattern)}:</span>`
         : '';
       const text = example.segments
         .map((segment) =>
           segment.isEmphasized
-            ? `<span class="font-semibold">${esc(segment.text)}</span>`
+            ? `<span class="pd-example-emphasis">${esc(segment.text)}</span>`
             : `<span>${esc(segment.text)}</span>`,
         )
         .join('');
-      const note = example.note
-        ? `<span class="text-xs text-[var(--p-text-muted-color)]">${esc(example.note)}</span>`
-        : '';
-      return `<span class="inline-flex items-baseline gap-1.5 text-sm">${lead}<span class="italic text-[var(--p-text-color)]">${pattern}${text}</span>${note}</span>`;
+      const note = example.note ? `<span class="pd-example-note">${esc(example.note)}</span>` : '';
+      return `<span class="pd-example">${lead}<span class="pd-example-content"><span class="pd-example-text">${pattern}${text}</span>${note}</span></span>`;
     }
     case 'richText': {
-      const textRight = field.direction === 'rtl' ? ' text-right' : '';
+      const rtlClass = field.direction === 'rtl' ? ' pd-rich-text-rtl' : '';
       // Intentionally raw, user-authored HTML - inserted as-is, same as the preview's [innerHTML].
-      return `<div class="text-sm text-[var(--p-text-color)]${textRight}" dir="${field.direction}">${field.html()}</div>`;
+      return `<div class="pd-rich-text${rtlClass}" dir="${field.direction}">${field.html()}</div>`;
     }
   }
 }
@@ -268,17 +251,17 @@ function renderChip(field: PlacedFieldData): string {
 // flows as text, inline-block otherwise.
 function renderInlineItem(field: PlacedFieldData): string {
   const wrapClass =
-    field.kind === 'senseDefinition' ? 'mr-2 align-baseline' : 'mr-2 align-baseline inline-block';
+    field.kind === 'senseDefinition' ? 'pd-inline-item pd-inline-item-flow' : 'pd-inline-item';
   let inner: string;
   switch (field.kind) {
     case 'headword':
-      inner = `<h2 class="inline font-serif text-2xl font-semibold text-[var(--p-text-color)]">${esc(field.entry.headword)}</h2>`;
+      inner = `<h2 class="pd-headword">${esc(field.entry.headword)}</h2>`;
       break;
     case 'homographNumber':
-      inner = `<sup class="text-[0.7em] font-normal text-[var(--p-text-muted-color)]">${esc(field.entry.homographNumber ?? '')}</sup>`;
+      inner = `<sup class="pd-homograph">${esc(field.entry.homographNumber ?? '')}</sup>`;
       break;
     case 'partOfSpeech':
-      inner = `<span class="text-sm italic text-[var(--p-text-muted-color)]">${esc(field.entry.partOfSpeech ?? '')}</span>`;
+      inner = `<span class="pd-pos pd-pos-muted">${esc(field.entry.partOfSpeech ?? '')}</span>`;
       break;
     default:
       inner = renderChip(field);
@@ -305,17 +288,14 @@ function renderGroup(group: TreeNode): string {
   const number = senseNumber(group);
   const isInflection = fields.some((field) => field.kind === 'inflectionForm');
 
-  const cls = ['relative'];
-  if (isInflection) cls.push('pl-4');
-  if (number !== null) cls.push('pl-6');
+  const cls = ['pd-group'];
+  if (isInflection) cls.push('pd-group-inflection');
+  if (number !== null) cls.push('pd-group-numbered');
 
-  const numberHtml =
-    number !== null
-      ? `<span class="absolute left-0 top-1 text-sm font-semibold text-[var(--p-text-muted-color)]">${number}</span>`
-      : '';
-  const inlineHtml = `<div>${inline.map(renderInlineItem).join('')}</div>`;
+  const numberHtml = number !== null ? `<span class="pd-group-number">${number}</span>` : '';
+  const inlineHtml = `<div class="pd-group-inline">${inline.map(renderInlineItem).join('')}</div>`;
   const stackedHtml = stacked.length
-    ? `<div class="mt-1 flex flex-col gap-0.5">${stacked.map((field) => `<div>${renderChip(field)}</div>`).join('')}</div>`
+    ? `<div class="pd-group-stacked">${stacked.map((field) => `<div>${renderChip(field)}</div>`).join('')}</div>`
     : '';
 
   return `<div class="${cls.join(' ')}">${numberHtml}${inlineHtml}${stackedHtml}</div>`;
@@ -325,5 +305,5 @@ function renderGroup(group: TreeNode): string {
 export function renderCardSide(groups: readonly TreeNode[]): string {
   if (!groups.length) return '';
   const inner = groups.map(renderGroup).join('');
-  return `<div class="pd-card"><div class="flex flex-col gap-3">${inner}</div></div>`;
+  return `<div class="pd-card"><div class="pd-groups">${inner}</div></div>`;
 }

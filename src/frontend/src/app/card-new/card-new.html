@@ -80,6 +80,19 @@
   <button
     pButton
     type="button"
+    severity="secondary"
+    [outlined]="true"
+    [loading]="pushingStyling()"
+    [disabled]="pushingStyling()"
+    title="Push the current card styling to Anki's {{ languageLabel() }}-Dictionary note type - doesn't add or change any card"
+    (click)="pushStyling()"
+  >
+    <svg data-p-icon="refresh" class="size-4"></svg>Update Anki styling
+  </button>
+
+  <button
+    pButton
+    type="button"
     class="ml-auto"
     [loading]="addingToAnki()"
     [disabled]="!canAddToAnki() || addingToAnki() || editLoading()"
@@ -122,6 +135,18 @@
   } @else {
     <p-message severity="error" class="mt-2 block">
       Couldn’t {{ editingNoteId() !== null ? 'save' : 'add' }} the card: {{ result.message }}
+    </p-message>
+  }
+}
+
+@if (pushStylingResult(); as styleResult) {
+  @if (styleResult.ok) {
+    <p-message severity="success" class="mt-2 block">
+      Pushed the current styling to the {{ languageLabel() }}-Dictionary note type in Anki.
+    </p-message>
+  } @else {
+    <p-message severity="error" class="mt-2 block">
+      Couldn’t update the Anki styling: {{ styleResult.message }}
     </p-message>
   }
 }
@@ -318,30 +343,35 @@
     }
     @case ('example') {
       @if (exampleFor(field); as example) {
-        <span class="inline-flex items-baseline gap-1.5 text-sm">
+        <!-- Same shape as a native <ul><li>: the lead marker is one flex item, the sentence+note
+             are a second flex item that is its own block box, so its wrapped lines (note
+             included) all start at that box's left edge, same as the first line. -->
+        <span class="flex items-start gap-1.5 text-sm">
           @if (example.audioUrl; as audioUrl) {
             <button
               type="button"
-              class="-mb-px inline-flex shrink-0 items-center rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
+              class="mt-0.5 inline-flex shrink-0 items-center rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
               title="Play example"
               (click)="playAudio(audioUrl, $event)"
             >
               <svg data-p-icon="volume-up" class="size-3.5 text-[var(--p-text-muted-color)]"></svg>
             </button>
           } @else {
-            <span class="-mb-px inline-flex size-3.5 shrink-0 items-center justify-center text-[var(--p-text-muted-color)]" aria-hidden="true">•</span>
+            <span class="mt-0.5 inline-flex size-3.5 shrink-0 items-center justify-center text-[var(--p-text-muted-color)]" aria-hidden="true">•</span>
           }
-          <span class="italic text-[var(--p-text-color)]">
-            @if (example.pattern; as pattern) {
-              <span class="text-blue-300 mr-1 not-italic font-semibold">{{ pattern }}:</span>
-            }
-            @for (segment of example.segments; track $index) {
-              <span [class.font-semibold]="segment.isEmphasized">{{ segment.text }}</span>
+          <span class="min-w-0">
+            <span class="italic text-[var(--p-text-color)]">
+              @if (example.pattern; as pattern) {
+                <span class="text-blue-300 mr-1 not-italic font-semibold">{{ pattern }}:</span>
+              }
+              @for (segment of example.segments; track $index) {
+                <span [class.font-semibold]="segment.isEmphasized">{{ segment.text }}</span>
+              }
+            </span>
+            @if (example.note; as note) {
+              <span class="ml-1.5 text-xs text-[var(--p-text-muted-color)]">{{ note }}</span>
             }
           </span>
-          @if (example.note; as note) {
-            <span class="text-xs text-[var(--p-text-muted-color)]">{{ note }}</span>
-          }
         </span>
       }
     }

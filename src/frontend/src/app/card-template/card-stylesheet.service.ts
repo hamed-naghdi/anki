@@ -1,11 +1,11 @@
 import { Injectable } from '@angular/core';
 
 /**
- * Loads the compiled card stylesheet. `card.css` (Tailwind for just the card markup + the resolved
- * PrimeNG theme tokens) is emitted by the Angular build as a non-injected `pd-card.css` bundle
- * (see angular.json `styles`); this fetches it once and hands the text to AnkiModelService to push
- * into the note type. It is never applied to the app itself - the in-app preview renders from the
- * Angular templates.
+ * Loads the compiled card stylesheet. `card.css` (hand-authored rules for the `pd-*` classes
+ * render-card.ts emits, plus the resolved PrimeNG theme tokens the colors are pinned to) is emitted
+ * by the Angular build as a non-injected `pd-card.css` bundle (see angular.json `styles`); this
+ * fetches it once and hands the text to AnkiModelService to push into the note type. It is never
+ * applied to the app itself - the in-app preview renders from the Angular templates.
  */
 @Injectable({ providedIn: 'root' })
 export class CardStylesheet {

@@ -30,6 +30,7 @@ import { TreeDragDropService } from 'primeng/api';
 import { GripVertical } from '@primeicons/angular/grip-vertical';
 import { Key } from '@primeicons/angular/key';
 import { Plus } from '@primeicons/angular/plus';
+import { Refresh } from '@primeicons/angular/refresh';
 import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
 import { VolumeUp } from '@primeicons/angular/volume-up';
@@ -203,6 +204,7 @@ interface OrderGroupData {
     GripVertical,
     Key,
     Plus,
+    Refresh,
     Search,
     Times,
     VolumeUp,
@@ -1374,6 +1376,30 @@ export class CardNew {
       this.addResult.set({ ok: false, message: (error as Error).message });
     } finally {
       this.addingToAnki.set(false);
+    }
+  }
+
+  // Manually re-push the compiled card.css/templates to this language's note type - for when the
+  // styling changed but there's no card worth adding/editing right now to trigger the normal
+  // version-gated push in AnkiModelService.addNote/updateNote.
+  protected readonly pushingStyling = signal(false);
+  protected readonly pushStylingResult = signal<
+    { ok: true } | { ok: false; message: string } | null
+  >(null);
+
+  protected async pushStyling(): Promise<void> {
+    if (this.pushingStyling()) {
+      return;
+    }
+    this.pushingStyling.set(true);
+    this.pushStylingResult.set(null);
+    try {
+      await this.ankiModelService.pushStyling(this.selectedLanguage());
+      this.pushStylingResult.set({ ok: true });
+    } catch (error) {
+      this.pushStylingResult.set({ ok: false, message: (error as Error).message });
+    } finally {
+      this.pushingStyling.set(false);
     }
   }
 
