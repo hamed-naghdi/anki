@@ -11,10 +11,13 @@ import type { EntryFieldData, PlacedField, PlacedFieldData } from '../card-new/c
  * this exists only because that markup leans on the app's Tailwind build and PrimeNG theme, neither
  * of which exists inside Anki's webview.
  *
- * Two deliberate departures from the templates: the primeicons `<svg>`s become `pd-i` spans that
+ * Three deliberate departures from the templates: the primeicons `<svg>`s become `pd-i` spans that
  * card.css fills from a CSS mask (keeps a card with many audio buttons small), and the example row
  * uses `items-baseline` + `-mb-px` on the lead instead of `items-start` + `mt-0.5` (the speaker was
- * sitting a few px low). The `#fieldChip` template carries the same example-alignment fix.
+ * sitting a few px low). The `#fieldChip` template carries the same example-alignment fix. The
+ * stacked-fields gap (renderGroup's stackedHtml) is tighter here than in #groupContent - the wider
+ * gap reads fine in the in-app preview but looked too airy between examples in an actual Anki
+ * review, so only this rendering was tightened.
  *
  * When you change the preview templates (or the helpers they call), change this to match and bump
  * `--pd-style-version` in card.css so the next "Add to Anki" re-pushes the styling.
@@ -312,7 +315,7 @@ function renderGroup(group: TreeNode): string {
       : '';
   const inlineHtml = `<div>${inline.map(renderInlineItem).join('')}</div>`;
   const stackedHtml = stacked.length
-    ? `<div class="mt-1 flex flex-col gap-1">${stacked.map((field) => `<div>${renderChip(field)}</div>`).join('')}</div>`
+    ? `<div class="mt-1 flex flex-col gap-0.5">${stacked.map((field) => `<div>${renderChip(field)}</div>`).join('')}</div>`
     : '';
 
   return `<div class="${cls.join(' ')}">${numberHtml}${inlineHtml}${stackedHtml}</div>`;

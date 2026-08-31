@@ -452,30 +452,44 @@ export class CardNew {
     // at once (PrimeNG's checkbox propagation walks children in this array's order) - keyword,
     // headword, homograph number, part of speech, UK then US pronunciation, frequency, matching the
     // real card design's field order regardless of which of these a given source actually has.
-    const nodes: TreeNode[] = [];
+    //
+    // These entry-level fields are wrapped in a "Head" group purely for display in the RESULTS
+    // tree - a purely visual/organizational grouping alongside "Inflection forms" and "Senses"
+    // below. It has no effect on the order tree / card preview (right column), which resolves
+    // leaves by key via entryFieldsByKey regardless of how deeply nested they are in this tree.
+    const headChildren: TreeNode[] = [];
 
     if (entry.isKeyword || entry.keywordLevel) {
-      nodes.push(field('keyword', 'Keyword & level'));
+      headChildren.push(field('keyword', 'Keyword & level'));
     }
-    nodes.push(field('headword', 'Headword'));
+    headChildren.push(field('headword', 'Headword'));
     if (entry.homographNumber) {
-      nodes.push(field('homographNumber', 'Homograph number'));
+      headChildren.push(field('homographNumber', 'Homograph number'));
     }
     if (entry.partOfSpeech) {
-      nodes.push(field('partOfSpeech', 'Part of speech'));
+      headChildren.push(field('partOfSpeech', 'Part of speech'));
     }
     if (entry.grammar) {
-      nodes.push(field('grammar', 'Grammar'));
+      headChildren.push(field('grammar', 'Grammar'));
     }
     if (this.britishPhonetic(entry)) {
-      nodes.push(field('pronunciation-british', 'Pronunciation (UK)'));
+      headChildren.push(field('pronunciation-british', 'Pronunciation (UK)'));
     }
     if (this.americanPhonetic(entry)) {
-      nodes.push(field('pronunciation-american', 'Pronunciation (US)'));
+      headChildren.push(field('pronunciation-american', 'Pronunciation (US)'));
     }
     if (entry.frequencyLabels?.length) {
-      nodes.push(field('frequencyLabels', 'Frequency'));
+      headChildren.push(field('frequencyLabels', 'Frequency'));
     }
+
+    const nodes: TreeNode[] = [
+      {
+        key: `${entryKey}-head`,
+        label: 'Head',
+        data: { isGroup: true, label: 'Head' } satisfies EntryFieldGroup,
+        children: headChildren,
+      },
+    ];
 
     if (entry.inflectionForms.length) {
       // A group, not a leaf: checking it (de)selects every form at once via checkbox propagation,
@@ -491,12 +505,14 @@ export class CardNew {
       });
     }
 
-    // One group per sense (not one big "Senses" wrapper) - mirrors how a dictionary site lists
-    // meanings as separate numbered entries, and lets a single sense be bulk-selected on its own.
+    // One group per sense, all wrapped in a single "Senses" parent (purely organizational in the
+    // RESULTS tree, same as "Head" above) - mirrors how a dictionary site lists meanings as separate
+    // numbered entries, and lets a single sense be bulk-selected on its own within that parent.
     // Order within a sense mirrors that site convention too: illustration first (Longman prints it
     // above everything else in the sense), then keyword/CEFR badge, grammar/register tag,
     // definition, synonyms/antonyms, then a nested Examples group (each example independently
     // selectable, same reasoning as inflection forms).
+    const senseNodes: TreeNode[] = [];
     entry.senses.forEach((sense, senseIndex) => {
       const senseChildren: TreeNode[] = [];
       if (sense.imageUrl) {
@@ -532,7 +548,7 @@ export class CardNew {
       }
       if (senseChildren.length) {
         const label = this.senseLabel(sense, senseIndex);
-        nodes.push({
+        senseNodes.push({
           key: `${entryKey}-sense-${senseIndex}`,
           label,
           data: { isGroup: true, label } satisfies EntryFieldGroup,
@@ -540,6 +556,15 @@ export class CardNew {
         });
       }
     });
+
+    if (senseNodes.length) {
+      nodes.push({
+        key: `${entryKey}-senses`,
+        label: 'Senses',
+        data: { isGroup: true, label: 'Senses' } satisfies EntryFieldGroup,
+        children: senseNodes,
+      });
+    }
 
     return nodes;
   }
