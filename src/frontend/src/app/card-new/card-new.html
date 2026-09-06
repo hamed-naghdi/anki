@@ -93,6 +93,18 @@
   <button
     pButton
     type="button"
+    severity="secondary"
+    [outlined]="true"
+    [disabled]="!canSwapFrontAndBack()"
+    title="Swap everything checked and arranged between Front and Back"
+    (click)="swapFrontAndBack()"
+  >
+    <svg data-p-icon="arrows-h" class="size-4"></svg>Swap Front/Back
+  </button>
+
+  <button
+    pButton
+    type="button"
     class="ml-auto"
     [loading]="addingToAnki()"
     [disabled]="!canAddToAnki() || addingToAnki() || editLoading()"

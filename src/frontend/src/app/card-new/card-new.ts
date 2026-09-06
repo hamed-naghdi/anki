@@ -27,6 +27,7 @@ import type { TreeNodeDropEvent } from 'primeng/tree';
 import { TreeSelect } from 'primeng/treeselect';
 import type { TreeNode } from 'primeng/api';
 import { TreeDragDropService } from 'primeng/api';
+import { ArrowsH } from '@primeicons/angular/arrows-h';
 import { GripVertical } from '@primeicons/angular/grip-vertical';
 import { Key } from '@primeicons/angular/key';
 import { Plus } from '@primeicons/angular/plus';
@@ -203,6 +204,7 @@ interface OrderGroupData {
     FormsModule,
     RouterLink,
     Message,
+    ArrowsH,
     GripVertical,
     Key,
     Plus,
@@ -790,6 +792,27 @@ export class CardNew {
       this.reconcileOrderTree(groups, checkedKeys, fieldsByKey),
     );
   }
+
+  // Exchanges Front and Back wholesale - both which leaves are checked and how each side's groups
+  // are arranged - for when a user builds one side then realizes it should have been the other.
+  // Swapping the two order trees directly (rather than re-deriving each side's from its swapped
+  // selection via setSelection/reconcileOrderTree) is what preserves each side's custom grouping/
+  // ordering/duplicates across the swap instead of collapsing back to one fresh group per entry.
+  protected swapFrontAndBack(): void {
+    const frontSelection = this.selectionBySide.front();
+    const backSelection = this.selectionBySide.back();
+    this.selectionBySide.front.set(backSelection);
+    this.selectionBySide.back.set(frontSelection);
+
+    const frontOrder = this.orderBySide.front();
+    const backOrder = this.orderBySide.back();
+    this.orderBySide.front.set(backOrder);
+    this.orderBySide.back.set(frontOrder);
+  }
+
+  protected readonly canSwapFrontAndBack = computed(
+    () => this.selectionBySide.front().length > 0 || this.selectionBySide.back().length > 0,
+  );
 
   // A side's order tree: a flat list of free-form groups, each holding whichever fields the user
   // put there. Starts as "each newly checked leaf appends into its own entry's default group" but
