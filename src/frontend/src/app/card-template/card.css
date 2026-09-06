@@ -15,7 +15,7 @@
 /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
    AnkiModelService reads it back from the note type's styling to decide when to re-push. */
 .pd-card {
-  --pd-style-version: 10;
+  --pd-style-version: 11;
 
   /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
      content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so this
@@ -156,6 +156,11 @@
 
 .pd-text {
   color: var(--p-text-color);
+}
+
+.pd-phrasal-pattern {
+  color: var(--p-text-color);
+  font-weight: 700;
 }
 
 .pd-hyphenation {

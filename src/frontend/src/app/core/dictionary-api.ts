@@ -77,6 +77,8 @@ export interface DictionarySense {
   imageUrl?: string | null;
   /** Longman-only short italic gloss right after a guideword (e.g. "separate into pieces"), grouping a set of sub-senses under a broader meaning. Null when this sense has none. */
   signpost?: string | null;
+  /** A phrasal verb sense's own object-placement pattern (e.g. "look something ↔ up"), printed right before the definition. Null for a non-phrasal sense. */
+  phrasalVerbPattern?: string | null;
 }
 
 /** A short vocabulary badge with a human-readable explanation, e.g. Longman's frequency dots ("●●○") or S1/W1 top-1000-word markers. */

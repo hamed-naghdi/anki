@@ -20,6 +20,16 @@ public sealed class LongmanSense : ISense
     /// <summary>The short italic gloss right after a guideword, e.g. "separate into pieces".</summary>
     public string? Signpost { get; init; }
 
+    /// <summary>
+    /// A phrasal verb sense's own object-placement pattern (Longman's .LEXUNIT, e.g. "look
+    /// something ↔ up"), printed right before the definition - distinct from the entry-level
+    /// <see cref="LongmanDictionaryEntry.Hyphenation"/>, which only ever holds one pattern for the
+    /// whole page even when different senses take the object in different spots. Null for a
+    /// non-phrasal sense, or one whose object always goes in the same place as the headword already
+    /// shows.
+    /// </summary>
+    public string? PhrasalVerbPattern { get; init; }
+
     /// <summary>Longman's raw subject-field code, e.g. "DST" for the tennis sense of "break" - printed as an icon on the site, no text expansion is available from the HTML alone.</summary>
     public string? Field { get; init; }
 

@@ -26,6 +26,22 @@ public class LongmanHtmlParserTests
     }
 
     [Fact]
+    public void Parse_LookUpFixture_ExtractsPerSensePhrasalVerbPatterns()
+    {
+        var html = LoadFixture("longman-look-up.html");
+
+        var result = LongmanHtmlParser.Parse("look up", html);
+
+        var entry = result.Entries[0];
+        Assert.Equal("look up", entry.Headword);
+
+        // Sense 1 ("things are looking up") is intransitive - no object placement to show.
+        Assert.Null(entry.Senses[0].PhrasalVerbPattern);
+        Assert.Equal("look something ↔ up", entry.Senses[1].PhrasalVerbPattern);
+        Assert.Equal("look somebody ↔ up", entry.Senses[2].PhrasalVerbPattern);
+    }
+
+    [Fact]
     public void Parse_ExampleFixture_ReturnsNounEntryWithDefinition()
     {
         var html = LoadFixture("longman-example.html");

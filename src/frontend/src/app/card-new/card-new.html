@@ -295,6 +295,11 @@
         <img [src]="imageUrl" [alt]="senseFor(field)?.definition ?? field.entry.headword" class="h-16 w-auto rounded border border-[var(--p-content-border-color)] object-contain" />
       }
     }
+    @case ('sensePhrasalVerbPattern') {
+      @if (senseFor(field)?.phrasalVerbPattern; as pattern) {
+        <span class="font-bold text-[var(--p-text-color)]">{{ pattern }}</span>
+      }
+    }
     @case ('senseDefinition') {
       @if (senseFor(field); as sense) {
         <span class="text-[var(--p-text-color)]">{{ sense.definition }}</span>

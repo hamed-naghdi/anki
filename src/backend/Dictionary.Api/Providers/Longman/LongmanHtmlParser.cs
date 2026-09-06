@@ -86,12 +86,13 @@ public static class LongmanHtmlParser
             var guideword = NullIfHeadword(DirectChildText(senseElement, "ACTIV"), headword);
             var signpost = DirectChildText(senseElement, "SIGNPOST");
             var field = DirectChildText(senseElement, "FIELD");
+            var phrasalVerbPattern = DirectChildText(senseElement, "LEXUNIT");
 
             var subsenses = senseElement.Children.Where(child => child.ClassList.Contains("Subsense")).ToList();
 
             if (subsenses.Count == 0)
             {
-                var sense = BuildSense(senseElement, senseNumber, guideword, signpost, field);
+                var sense = BuildSense(senseElement, senseNumber, guideword, signpost, field, phrasalVerbPattern);
                 if (sense is not null)
                 {
                     yield return sense;
@@ -105,8 +106,9 @@ public static class LongmanHtmlParser
                 var letter = DirectChildText(subsense, "sensenum")?.TrimEnd(')');
                 var label = senseNumber is null ? letter : $"{senseNumber}{letter}";
                 var subField = DirectChildText(subsense, "FIELD") ?? field;
+                var subPhrasalVerbPattern = DirectChildText(subsense, "LEXUNIT") ?? phrasalVerbPattern;
 
-                var sense = BuildSense(subsense, label, guideword, signpost, subField);
+                var sense = BuildSense(subsense, label, guideword, signpost, subField, subPhrasalVerbPattern);
                 if (sense is not null)
                 {
                     yield return sense;
@@ -115,7 +117,8 @@ public static class LongmanHtmlParser
         }
     }
 
-    private static LongmanSense? BuildSense(IElement scope, string? senseLabel, string? guideword, string? signpost, string? field)
+    private static LongmanSense? BuildSense(
+        IElement scope, string? senseLabel, string? guideword, string? signpost, string? field, string? phrasalVerbPattern)
     {
         var sense = new LongmanSense
         {
@@ -129,6 +132,7 @@ public static class LongmanHtmlParser
             Guideword = guideword,
             Signpost = signpost,
             Field = field,
+            PhrasalVerbPattern = phrasalVerbPattern,
             ImageUrl = ExtractSenseImage(scope),
         };
 

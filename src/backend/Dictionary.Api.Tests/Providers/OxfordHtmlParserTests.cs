@@ -277,6 +277,28 @@ public class OxfordHtmlParserTests
     }
 
     [Fact]
+    public void Parse_LookUpFixture_ExtractsPerSensePhrasalVerbPatternAndItsKeywordCefrLevel()
+    {
+        var html = LoadFixture("oxford-look-up.html");
+
+        var result = OxfordHtmlParser.Parse("look up", html);
+
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal(4, entry.Senses.Count);
+
+        // Sense 1 ("look up" intransitive, "things are looking up") has its own .pv-g but no object
+        // placeholder to substitute - nothing gained over the headword, but extracted as-is anyway.
+        Assert.Equal("look up", entry.Senses[0].PhrasalVerbPattern);
+        Assert.Equal("look up (from something)", entry.Senses[1].PhrasalVerbPattern);
+        Assert.Equal("look somebody ↔ up", entry.Senses[2].PhrasalVerbPattern);
+
+        var fourth = entry.Senses[3];
+        Assert.Equal("look something ↔ up", fourth.PhrasalVerbPattern);
+        Assert.Equal("a2", fourth.CefrLevel);
+        Assert.True(fourth.IsKeyword);
+    }
+
+    [Fact]
     public void Parse_CuriosityFixture_HasNoHyphenationSinceOxfordNeverPrintsSyllableDivision()
     {
         var html = LoadFixture("oxford-curiosity.html");

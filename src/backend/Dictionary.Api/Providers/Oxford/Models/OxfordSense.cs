@@ -33,5 +33,14 @@ public sealed class OxfordSense : ISense
     /// <summary>This sense's truncated "Oxford Collocations Dictionary" preview box, when it has one.</summary>
     public OxfordCollocationGroup? CollocationGroup { get; init; }
 
+    /// <summary>
+    /// A phrasal verb sense's own object-placement pattern (e.g. "look something ↔ up"), taken from
+    /// the enclosing .pv-g's own .pv - a page like "look up" or "put on" carries several .pv-g
+    /// groups under one URL, each with its own pattern and its own senses, so this is read per-sense
+    /// rather than once for the whole entry the way <see cref="OxfordDictionaryEntry.Hyphenation"/>
+    /// is. Null for a non-phrasal sense.
+    /// </summary>
+    public string? PhrasalVerbPattern { get; init; }
+
     IReadOnlyList<IExample> ISense.Examples => Examples;
 }

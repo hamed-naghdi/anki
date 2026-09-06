@@ -122,25 +122,25 @@ public static partial class OxfordHtmlParser
             Senses = senses,
             Etymology = ExtractEtymology(entryElement),
             Idioms = ExtractIdioms(entryElement),
-            Hyphenation = ExtractPhrasalVerbPattern(entryElement),
+            // Only the first .pv-g's pattern - a page can carry several (e.g. "put on"'s "put
+            // somebody on" vs. "put something on"), one per distinct sense (see ExtractSense's own,
+            // per-sense use of ExtractPvPatternText below), but this entry-level field, like every
+            // other one here, only ever holds a single value for the whole page.
+            Hyphenation = ExtractPvPatternText(entryElement.QuerySelector(".pv-g .pv")),
         };
     }
 
     /// <summary>
-    /// A phrasal verb's own page (e.g. "cross-out") prints its object-placement pattern in a
-    /// ".pv-g .pv" span, e.g. "cross something &lt;span class="pvarr"/&gt;out/through" in the raw
-    /// markup - the "/&gt;" is meaningless in HTML5 (only void/foreign elements self-close), so
-    /// AngleSharp - like a real browser - keeps .pvarr open and nests "out/through" inside it rather
-    /// than treating it as a sibling; the object-position arrow itself is a CSS background icon on
-    /// that (otherwise empty) span, not real text. Both are accounted for below: substitute "↔" for
-    /// the icon, then keep the element's own (mis-nested) text rather than discarding it. A page can
-    /// carry several .pv-g groups (one per distinct object-placement pattern, e.g. "put on"'s "put
-    /// somebody on" vs. "put something on"); only the first is used, same as every other entry-level
-    /// field here already collapses a multi-pattern page down to one value.
+    /// The object-placement pattern text of one ".pv" span, e.g. "cross something
+    /// &lt;span class="pvarr"/&gt;out/through" in the raw markup - the "/&gt;" is meaningless in
+    /// HTML5 (only void/foreign elements self-close), so AngleSharp - like a real browser - keeps
+    /// .pvarr open and nests "out/through" inside it rather than treating it as a sibling; the
+    /// object-position arrow itself is a CSS background icon on that (otherwise empty) span, not
+    /// real text. Both are accounted for below: substitute "↔" for the icon, then keep the element's
+    /// own (mis-nested) text rather than discarding it.
     /// </summary>
-    private static string? ExtractPhrasalVerbPattern(IElement entryElement)
+    private static string? ExtractPvPatternText(IElement? pv)
     {
-        var pv = entryElement.QuerySelector(".pv-g .pv");
         if (pv is null)
         {
             return null;
@@ -201,7 +201,16 @@ public static partial class OxfordHtmlParser
     private static OxfordSense? ExtractSense(IElement senseElement)
     {
         var (isKeyword, cefrLevel) = ExtractKeywordInfo(senseElement);
-        cefrLevel ??= NullIfEmpty(senseElement.GetAttribute("cefr"));
+
+        // A phrasal-verb sense whose keyword-ness comes from its .pv-g's own pattern (rather than
+        // from a topic or the sense's own "opinion and argument"-style CEFR rating) carries it as
+        // plain attributes directly on the <li class="sense"> instead of the .symbols icon markup
+        // ExtractKeywordInfo looks for - "fkcefr" ("from keyword cefr") stands in for "cefr" there,
+        // e.g. "look something up" on the "look up" page: <li class="sense" ox3000="y" fkcefr="a2">.
+        cefrLevel ??= NullIfEmpty(senseElement.GetAttribute("cefr")) ?? NullIfEmpty(senseElement.GetAttribute("fkcefr"));
+        isKeyword = isKeyword
+            || senseElement.GetAttribute("ox3000") == "y"
+            || senseElement.GetAttribute("ox5000") == "y";
 
         var patterns = senseElement.Children
             .Where(child => child.ClassList.Contains("cf"))
@@ -227,6 +236,7 @@ public static partial class OxfordHtmlParser
             Examples = examples,
             Topics = ExtractTopics(senseElement),
             CollocationGroup = ExtractCollocationGroup(senseElement),
+            PhrasalVerbPattern = ExtractPvPatternText(senseElement.Closest(".pv-g")?.QuerySelector(".pv")),
         };
 
         var isMeaningful = sense.Definition is not null || sense.Examples.Count > 0 || sense.Patterns.Count > 0;

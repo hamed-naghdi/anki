@@ -90,6 +90,7 @@ type EntryFieldKind =
   | 'senseSignpost'
   | 'senseGrammar'
   | 'senseRegister'
+  | 'sensePhrasalVerbPattern'
   | 'senseSynonyms'
   | 'senseAntonyms'
   | 'example';
@@ -520,8 +521,9 @@ export class CardNew {
     // numbered entries, and lets a single sense be bulk-selected on its own within that parent.
     // Order within a sense mirrors that site convention too: illustration first (Longman prints it
     // above everything else in the sense), then keyword/CEFR badge, signpost, grammar/register tag,
-    // definition, synonyms/antonyms, then a nested Examples group (each example independently
-    // selectable, same reasoning as inflection forms).
+    // a phrasal verb's own object-placement pattern (Longman prints this - .LEXUNIT - right before
+    // the definition, so it lands there too), definition, synonyms/antonyms, then a nested Examples
+    // group (each example independently selectable, same reasoning as inflection forms).
     const senseNodes: TreeNode[] = [];
     entry.senses.forEach((sense, senseIndex) => {
       const senseChildren: TreeNode[] = [];
@@ -539,6 +541,9 @@ export class CardNew {
       }
       if (sense.register) {
         senseChildren.push(field('senseRegister', 'Register', { senseIndex }));
+      }
+      if (sense.phrasalVerbPattern) {
+        senseChildren.push(field('sensePhrasalVerbPattern', 'Pattern', { senseIndex }));
       }
       if (sense.definition) {
         senseChildren.push(field('senseDefinition', 'Definition', { senseIndex }));
@@ -695,6 +700,8 @@ export class CardNew {
         return this.senseFor(field)?.grammar ?? '';
       case 'senseRegister':
         return this.senseFor(field)?.register ?? '';
+      case 'sensePhrasalVerbPattern':
+        return this.senseFor(field)?.phrasalVerbPattern ?? '';
       case 'senseSynonyms':
         return (this.senseFor(field)?.synonyms ?? []).join(', ');
       case 'senseAntonyms':

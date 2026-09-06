@@ -215,6 +215,10 @@ function renderChip(field: PlacedFieldData): string {
       const register = senseOf(field)?.register;
       return register ? `<span class="pd-badge pd-badge-register">${esc(register)}</span>` : '';
     }
+    case 'sensePhrasalVerbPattern': {
+      const pattern = senseOf(field)?.phrasalVerbPattern;
+      return pattern ? `<span class="pd-phrasal-pattern">${esc(pattern)}</span>` : '';
+    }
     case 'senseSynonyms': {
       const sense = senseOf(field);
       if (!sense?.synonyms.length) return '';
