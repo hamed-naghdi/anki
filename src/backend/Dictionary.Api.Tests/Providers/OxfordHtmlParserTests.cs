@@ -264,6 +264,29 @@ public class OxfordHtmlParserTests
     }
 
     [Fact]
+    public void Parse_CrossOutFixture_ExtractsObjectPlacementPatternAsHyphenationWithArrowSubstituted()
+    {
+        var html = LoadFixture("oxford-cross-out.html");
+
+        var result = OxfordHtmlParser.Parse("cross out", html);
+
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal("cross out", entry.Headword);
+        Assert.Equal("phrasal verb", entry.PartOfSpeech);
+        Assert.Equal("cross something ↔ out/through", entry.Hyphenation);
+    }
+
+    [Fact]
+    public void Parse_CuriosityFixture_HasNoHyphenationSinceOxfordNeverPrintsSyllableDivision()
+    {
+        var html = LoadFixture("oxford-curiosity.html");
+
+        var result = OxfordHtmlParser.Parse("curiosity", html);
+
+        Assert.Null(result.Entries[0].Hyphenation);
+    }
+
+    [Fact]
     public void FindOtherHomographUrls_WalkFixture_FindsTheNounPageButNotUnrelatedNearbyWords()
     {
         var html = LoadFixture("oxford-walk.html");

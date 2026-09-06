@@ -168,6 +168,9 @@
     @case ('homographNumber') {
       <span class="text-[var(--p-text-color)]">{{ field.entry.homographNumber }}</span>
     }
+    @case ('hyphenation') {
+      <span class="text-[var(--p-text-muted-color)]">{{ field.entry.hyphenation }}</span>
+    }
     @case ('grammar') {
       <span
         class="rounded border border-slate-400/40 px-1 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:border-slate-400/40 dark:text-slate-300"
@@ -287,7 +290,7 @@
     }
     @case ('senseKeyword') {
       @if (senseFor(field); as sense) {
-        <span class="relative top-1 inline-flex items-center gap-1">
+        <span class="inline-flex items-center gap-1">
           @if (sense.isKeyword) {
             <svg data-p-icon="key" class="size-3 text-amber-500 dark:text-amber-400" title="Oxford 3000/5000 keyword sense"></svg>
           }

@@ -76,6 +76,7 @@ type EntryFieldKind =
   | 'headword'
   | 'partOfSpeech'
   | 'homographNumber'
+  | 'hyphenation'
   | 'grammar'
   | 'pronunciation-british'
   | 'pronunciation-american'
@@ -452,8 +453,9 @@ export class CardNew {
 
     // This order is what determines the order fields land in when the user checks the whole entry
     // at once (PrimeNG's checkbox propagation walks children in this array's order) - keyword,
-    // headword, homograph number, part of speech, UK then US pronunciation, frequency, matching the
-    // real card design's field order regardless of which of these a given source actually has.
+    // headword, hyphenation/pattern, homograph number, part of speech, UK then US pronunciation,
+    // frequency, matching the real card design's field order regardless of which of these a given
+    // source actually has.
     //
     // These entry-level fields are wrapped in a "Head" group purely for display in the RESULTS
     // tree - a purely visual/organizational grouping alongside "Inflection forms" and "Senses"
@@ -465,6 +467,9 @@ export class CardNew {
       headChildren.push(field('keyword', 'Keyword & level'));
     }
     headChildren.push(field('headword', 'Headword'));
+    if (entry.hyphenation) {
+      headChildren.push(field('hyphenation', 'Hyphenation'));
+    }
     if (entry.homographNumber) {
       headChildren.push(field('homographNumber', 'Homograph number'));
     }
@@ -643,6 +648,8 @@ export class CardNew {
         return field.entry.partOfSpeech ?? '';
       case 'homographNumber':
         return field.entry.homographNumber ?? '';
+      case 'hyphenation':
+        return field.entry.hyphenation ?? '';
       case 'grammar':
         return field.entry.grammar ?? '';
       case 'pronunciation-british': {

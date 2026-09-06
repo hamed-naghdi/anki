@@ -11,6 +11,7 @@ public sealed class LongmanDictionaryEntry : IDictionaryEntry
     /// <summary>Longman's superscript homograph number (e.g. the "1" in "free¹"), distinguishing this entry from other same-spelled headwords on the page. Null when the page doesn't print one.</summary>
     public string? HomographNumber { get; init; }
 
+    /// <summary>Syllable-divided spelling (e.g. "cu‧ri‧os‧i‧ty"); for a phrasal verb, the object-placement pattern instead (e.g. "cross something ↔ out"), since Longman prints that in the same headword slot. Null when Longman prints neither.</summary>
     public string? Hyphenation { get; init; }
     public string? Grammar { get; init; }
     public required IReadOnlyList<Pronunciation> Pronunciations { get; init; }

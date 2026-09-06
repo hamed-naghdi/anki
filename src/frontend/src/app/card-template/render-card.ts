@@ -146,6 +146,8 @@ function renderChip(field: PlacedFieldData): string {
       return `<span class="pd-pos">${esc(field.entry.partOfSpeech ?? '')}</span>`;
     case 'homographNumber':
       return `<span class="pd-text">${esc(field.entry.homographNumber ?? '')}</span>`;
+    case 'hyphenation':
+      return `<span class="pd-hyphenation">${esc(field.entry.hyphenation ?? '')}</span>`;
     case 'grammar':
       return `<span class="pd-badge pd-badge-outline">${esc(field.entry.grammar ?? '')}</span>`;
     case 'pronunciation-british': {

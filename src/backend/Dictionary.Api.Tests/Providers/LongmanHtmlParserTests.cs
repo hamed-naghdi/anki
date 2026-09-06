@@ -13,6 +13,19 @@ public class LongmanHtmlParserTests
         string.Concat(example.Segments.Select(s => s.Text));
 
     [Fact]
+    public void Parse_CrossOutFixture_ExtractsHeadwordAndPatternFromPhrasalVerbHead()
+    {
+        var html = LoadFixture("longman-cross-out.html");
+
+        var result = LongmanHtmlParser.Parse("cross out", html);
+
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal("cross out", entry.Headword);
+        Assert.Equal("phrasal verb", entry.PartOfSpeech);
+        Assert.Equal("cross something ↔ out", entry.Hyphenation);
+    }
+
+    [Fact]
     public void Parse_ExampleFixture_ReturnsNounEntryWithDefinition()
     {
         var html = LoadFixture("longman-example.html");

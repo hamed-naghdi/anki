@@ -17,6 +17,14 @@ public sealed class OxfordDictionaryEntry : IDictionaryEntry
     /// <summary>CEFR level associated with the keyword-list membership above (e.g. "a1", "c1").</summary>
     public string? KeywordLevel { get; init; }
 
+    /// <summary>
+    /// Oxford doesn't print syllable-hyphenated spellings at all, but a phrasal verb's own page
+    /// prints its object-placement pattern here instead (e.g. "cross something ↔ out/through") -
+    /// mirrors <see cref="Longman.Models.LongmanDictionaryEntry.Hyphenation"/>'s same dual role so
+    /// the frontend can render both providers the same way. Null for a plain (non-phrasal) entry.
+    /// </summary>
+    public string? Hyphenation { get; init; }
+
     /// <summary>OPAL (Oxford Phrasal Academic Lexicon) academic word-list badges, e.g. "OPAL S" (spoken, sublist 3).</summary>
     public required IReadOnlyList<UsageLabel> AcademicWordLists { get; init; }
 

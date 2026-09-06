@@ -100,6 +100,8 @@ export interface DictionaryEntry {
   inflectionForms: InflectionForm[];
   senses: DictionarySense[];
   homographNumber?: string | null;
+  /** Syllable-divided spelling (Longman, e.g. "cu‧ri‧os‧i‧ty"), or a phrasal verb's object-placement pattern in that same slot (both providers, e.g. "cross something ↔ out/through"). */
+  hyphenation?: string | null;
   frequencyLabels?: UsageLabel[];
   /** Whether the headword is in the Oxford 3000/5000 keyword list. */
   isKeyword?: boolean;

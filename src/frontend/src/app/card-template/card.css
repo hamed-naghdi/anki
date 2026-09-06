@@ -15,7 +15,7 @@
 /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
    AnkiModelService reads it back from the note type's styling to decide when to re-push. */
 .pd-card {
-  --pd-style-version: 8;
+  --pd-style-version: 9;
 
   /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
      content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so this
@@ -158,6 +158,10 @@
   color: var(--p-text-color);
 }
 
+.pd-hyphenation {
+  color: var(--p-text-muted-color);
+}
+
 /* --- badges --- */
 
 .pd-badge {
@@ -258,8 +262,6 @@
 }
 
 .pd-badge-group.pd-badge-group-raised {
-  position: relative;
-  top: 0.25rem;
   gap: 0.25rem;
 }
 

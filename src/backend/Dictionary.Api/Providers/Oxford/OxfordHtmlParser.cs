@@ -122,7 +122,36 @@ public static partial class OxfordHtmlParser
             Senses = senses,
             Etymology = ExtractEtymology(entryElement),
             Idioms = ExtractIdioms(entryElement),
+            Hyphenation = ExtractPhrasalVerbPattern(entryElement),
         };
+    }
+
+    /// <summary>
+    /// A phrasal verb's own page (e.g. "cross-out") prints its object-placement pattern in a
+    /// ".pv-g .pv" span, e.g. "cross something &lt;span class="pvarr"/&gt;out/through" in the raw
+    /// markup - the "/&gt;" is meaningless in HTML5 (only void/foreign elements self-close), so
+    /// AngleSharp - like a real browser - keeps .pvarr open and nests "out/through" inside it rather
+    /// than treating it as a sibling; the object-position arrow itself is a CSS background icon on
+    /// that (otherwise empty) span, not real text. Both are accounted for below: substitute "↔" for
+    /// the icon, then keep the element's own (mis-nested) text rather than discarding it. A page can
+    /// carry several .pv-g groups (one per distinct object-placement pattern, e.g. "put on"'s "put
+    /// somebody on" vs. "put something on"); only the first is used, same as every other entry-level
+    /// field here already collapses a multi-pattern page down to one value.
+    /// </summary>
+    private static string? ExtractPhrasalVerbPattern(IElement entryElement)
+    {
+        var pv = entryElement.QuerySelector(".pv-g .pv");
+        if (pv is null)
+        {
+            return null;
+        }
+
+        var text = string.Concat(pv.ChildNodes.Select(node =>
+            node is IElement element && element.ClassList.Contains("pvarr")
+                ? " ↔ " + element.TextContent
+                : node.TextContent));
+
+        return NullIfEmpty(WhitespaceRegex().Replace(text, " ").Trim());
     }
 
     /// <summary>
@@ -597,4 +626,7 @@ public static partial class OxfordHtmlParser
 
     [GeneratedRegex(@"^ox[35]ksym_([a-c][12])$")]
     private static partial Regex KeywordSymbolRegex();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRegex();
 }

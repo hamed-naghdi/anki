@@ -46,7 +46,9 @@ public static class LongmanHtmlParser
         IElement ldEntry, IReadOnlyList<WordFamilyMember> wordFamily, IReadOnlyDictionary<string, string> etymologyByHomnum)
     {
         var headElement = ldEntry.QuerySelector(".Head");
-        var headword = ExtractText(headElement, ".HWD") ?? "";
+        // A phrasal verb (e.g. "cross out") has no .HWD at all - its headword only exists inside
+        // .PHRVBHWD, mixed in with the object placeholder (see ExtractPhrasalVerbHeadword).
+        var headword = ExtractText(headElement, ".HWD") ?? ExtractPhrasalVerbHeadword(headElement) ?? "";
         var homnum = ExtractText(headElement, ".HOMNUM") ?? "";
 
         return new LongmanDictionaryEntry
@@ -645,6 +647,24 @@ public static class LongmanHtmlParser
         }
 
         return ExtractText(headElement, ".HYPHENATION") ?? ExtractText(headElement, ".PHRVBHWD");
+    }
+
+    /// <summary>
+    /// A phrasal verb's headword (e.g. "cross out", "put on") - .PHRVBHWD prints it with the
+    /// object placeholder mixed in (e.g. "cross<span class="OBJECT"> something ↔</span> out"), so
+    /// this strips .OBJECT out and collapses the whitespace left behind (a verb can carry more than
+    /// one, e.g. "put something on something") to recover the plain "cross out"/"put on".
+    /// </summary>
+    private static string? ExtractPhrasalVerbHeadword(IElement? headElement)
+    {
+        var phrvbhwd = headElement?.QuerySelector(".PHRVBHWD");
+        if (phrvbhwd is null)
+        {
+            return null;
+        }
+
+        var text = string.Join(' ', ExtractTextExcluding(phrvbhwd, ".OBJECT").Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        return NullIfEmpty(text);
     }
 
     private static string? ExtractGrammar(IElement? scope)
