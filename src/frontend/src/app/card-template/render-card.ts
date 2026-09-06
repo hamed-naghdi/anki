@@ -203,6 +203,10 @@ function renderChip(field: PlacedFieldData): string {
       if (!sense) return '';
       return `<span class="pd-badge-group pd-badge-group-raised">${keywordBadges(sense.isKeyword, sense.cefrLevel, 'Oxford 3000/5000 keyword sense')}</span>`;
     }
+    case 'senseSignpost': {
+      const signpost = senseOf(field)?.signpost;
+      return signpost ? `<span class="pd-badge pd-badge-signpost">${esc(signpost)}</span>` : '';
+    }
     case 'senseGrammar': {
       const grammar = senseOf(field)?.grammar;
       return grammar ? `<span class="pd-badge pd-badge-outline">${esc(grammar)}</span>` : '';

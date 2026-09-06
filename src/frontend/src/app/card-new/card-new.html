@@ -304,6 +304,14 @@
         </span>
       }
     }
+    @case ('senseSignpost') {
+      @if (senseFor(field)?.signpost; as signpost) {
+        <span
+          class="rounded px-1 text-[10px] font-bold uppercase tracking-wide text-white bg-[#e67600] dark:bg-[#fb9d33] dark:text-slate-900"
+          >{{ signpost }}</span
+        >
+      }
+    }
     @case ('senseGrammar') {
       @if (senseFor(field)?.grammar; as grammar) {
         <span

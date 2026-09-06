@@ -75,6 +75,8 @@ export interface DictionarySense {
   isKeyword?: boolean;
   /** Illustration Longman prints at the top of this sense (e.g. "frying pan"), null for the vast majority of senses, which have none. */
   imageUrl?: string | null;
+  /** Longman-only short italic gloss right after a guideword (e.g. "separate into pieces"), grouping a set of sub-senses under a broader meaning. Null when this sense has none. */
+  signpost?: string | null;
 }
 
 /** A short vocabulary badge with a human-readable explanation, e.g. Longman's frequency dots ("●●○") or S1/W1 top-1000-word markers. */

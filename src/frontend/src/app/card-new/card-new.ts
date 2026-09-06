@@ -86,6 +86,7 @@ type EntryFieldKind =
   | 'senseImage'
   | 'senseDefinition'
   | 'senseKeyword'
+  | 'senseSignpost'
   | 'senseGrammar'
   | 'senseRegister'
   | 'senseSynonyms'
@@ -516,7 +517,7 @@ export class CardNew {
     // RESULTS tree, same as "Head" above) - mirrors how a dictionary site lists meanings as separate
     // numbered entries, and lets a single sense be bulk-selected on its own within that parent.
     // Order within a sense mirrors that site convention too: illustration first (Longman prints it
-    // above everything else in the sense), then keyword/CEFR badge, grammar/register tag,
+    // above everything else in the sense), then keyword/CEFR badge, signpost, grammar/register tag,
     // definition, synonyms/antonyms, then a nested Examples group (each example independently
     // selectable, same reasoning as inflection forms).
     const senseNodes: TreeNode[] = [];
@@ -527,6 +528,9 @@ export class CardNew {
       }
       if (sense.isKeyword || sense.cefrLevel) {
         senseChildren.push(field('senseKeyword', 'Level', { senseIndex }));
+      }
+      if (sense.signpost) {
+        senseChildren.push(field('senseSignpost', 'Signpost', { senseIndex }));
       }
       if (sense.grammar) {
         senseChildren.push(field('senseGrammar', 'Grammar', { senseIndex }));
@@ -683,6 +687,8 @@ export class CardNew {
           .filter((part): part is string => !!part)
           .join(' · ');
       }
+      case 'senseSignpost':
+        return this.senseFor(field)?.signpost ?? '';
       case 'senseGrammar':
         return this.senseFor(field)?.grammar ?? '';
       case 'senseRegister':

@@ -15,7 +15,7 @@
 /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
    AnkiModelService reads it back from the note type's styling to decide when to re-push. */
 .pd-card {
-  --pd-style-version: 9;
+  --pd-style-version: 10;
 
   /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
      content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so this
@@ -253,6 +253,16 @@
 
 :where(.nightMode, .nightMode *) .pd-badge-cefr-c {
   background-color: rgba(139, 92, 246, 0.8);
+}
+
+.pd-badge-signpost {
+  color: #ffffff;
+  background-color: #e67600;
+}
+
+:where(.nightMode, .nightMode *) .pd-badge-signpost {
+  background-color: #fb9d33;
+  color: #0f172a;
 }
 
 .pd-badge-group {
