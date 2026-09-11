@@ -7,6 +7,25 @@
     </button>
   </div>
 
+  <p-iconfield>
+    <p-inputicon>
+      <svg data-p-icon="search"></svg>
+    </p-inputicon>
+    <input
+      pInputText
+      type="text"
+      placeholder="Search cards…"
+      class="w-full"
+      [ngModel]="searchTerm()"
+      (ngModelChange)="searchTerm.set($event)"
+    />
+    @if (searchTerm()) {
+      <p-inputicon (click)="searchTerm.set('')" class="cursor-pointer">
+        <svg data-p-icon="times"></svg>
+      </p-inputicon>
+    }
+  </p-iconfield>
+
   @if (error(); as err) {
     <span class="text-sm text-red-500">{{ err }}</span>
   } @else {
@@ -15,9 +34,13 @@
         <p class="px-4 py-6 text-center text-sm text-surface-500">Loading cards…</p>
       } @else if (!rows().length) {
         <p class="px-4 py-6 text-center text-sm text-surface-500">No dictionary cards yet.</p>
+      } @else if (!filteredRows().length) {
+        <p class="px-4 py-6 text-center text-sm text-surface-500">
+          No cards match “{{ searchTerm() }}”.
+        </p>
       } @else {
         <ul class="divide-y divide-surface-200 dark:divide-surface-700">
-          @for (row of rows(); track row.noteId) {
+          @for (row of filteredRows(); track row.noteId) {
             <li>
               @if (row.editable) {
                 <a

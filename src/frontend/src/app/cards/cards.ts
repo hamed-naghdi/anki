@@ -1,7 +1,13 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonDirective } from 'primeng/button';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
+import { InputText } from 'primeng/inputtext';
 import { Plus } from '@primeicons/angular/plus';
+import { Search } from '@primeicons/angular/search';
+import { Times } from '@primeicons/angular/times';
 import { AnkiConnectService } from '../core/anki-connect.service';
 import { LANGUAGES } from '../core/dictionary-api';
 import { dictionaryModelName } from '../card-template/card-model';
@@ -23,7 +29,17 @@ interface NoteInfo {
 /** Lists every dictionary note across the app's note types, newest first, each opening in the editor. */
 @Component({
   selector: 'app-cards',
-  imports: [RouterLink, ButtonDirective, Plus],
+  imports: [
+    RouterLink,
+    FormsModule,
+    ButtonDirective,
+    IconField,
+    InputIcon,
+    InputText,
+    Plus,
+    Search,
+    Times,
+  ],
   templateUrl: './cards.html',
 })
 export class Cards {
@@ -32,6 +48,17 @@ export class Cards {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly rows = signal<CardRow[]>([]);
+  protected readonly searchTerm = signal('');
+
+  protected readonly filteredRows = computed(() => {
+    const term = this.searchTerm().trim().toLowerCase();
+    if (!term) {
+      return this.rows();
+    }
+    return this.rows().filter(
+      (row) => row.word.toLowerCase().includes(term) || row.deck.toLowerCase().includes(term),
+    );
+  });
 
   constructor() {
     void this.load();
