@@ -1,5 +1,5 @@
 <div class="overflow-hidden">
-  <p-sidebar-layout class="min-h-192! relative!">
+  <p-sidebar-layout class="min-h-dvh! relative!">
     @if (isMobile() && (navOpen() || open())) {
       <p-sidebar-backdrop class="absolute!" />
     }
@@ -47,32 +47,10 @@
                       <span>Cards</span>
                     </button>
                   </p-sidebar-menu-item>
-                  <p-sidebar-menu-item>
-                    <button pSidebarMenuButton>
-                      <svg data-p-icon="search"></svg>
-                      <span>Search</span>
-                    </button>
-                  </p-sidebar-menu-item>
-                  <p-sidebar-menu-item>
-                    <button pSidebarMenuButton>
-                      <svg data-p-icon="bell"></svg>
-                      <span>Notifications</span>
-                    </button>
-                  </p-sidebar-menu-item>
                 </p-sidebar-menu>
               </p-sidebar-group-content>
             </p-sidebar-group>
           </p-sidebar-content>
-          <p-sidebar-footer>
-            <p-sidebar-menu>
-              <p-sidebar-menu-item>
-                <button pSidebarMenuButton>
-                  <svg data-p-icon="cog"></svg>
-                  <span>Settings</span>
-                </button>
-              </p-sidebar-menu-item>
-            </p-sidebar-menu>
-          </p-sidebar-footer>
         </p-sidebar-panel>
       </p-sidebar-aside>
     </p-sidebar>

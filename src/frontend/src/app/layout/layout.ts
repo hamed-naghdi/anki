@@ -4,15 +4,8 @@ import { FormsModule } from '@angular/forms';
 
 import { SidebarModule } from 'primeng/sidebar';
 import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
-import { SelectModule } from 'primeng/select';
-import { IconFieldModule } from 'primeng/iconfield';
-import { InputIconModule } from 'primeng/inputicon';
 import { Clone } from '@primeicons/angular/clone';
 import { Home } from '@primeicons/angular/home';
-import { Search } from '@primeicons/angular/search';
-import { Bell } from '@primeicons/angular/bell';
-import { Cog } from '@primeicons/angular/cog';
 import { Sidebar } from '@primeicons/angular/sidebar';
 
 @Component({
@@ -23,15 +16,8 @@ import { Sidebar } from '@primeicons/angular/sidebar';
     FormsModule,
     SidebarModule,
     ButtonModule,
-    InputTextModule,
-    SelectModule,
-    IconFieldModule,
-    InputIconModule,
     Clone,
     Home,
-    Search,
-    Bell,
-    Cog,
     Sidebar,
   ],
   selector: 'app-layout',
