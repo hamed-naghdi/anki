@@ -3,7 +3,8 @@ using Dictionary.Api.Providers.Oxford.Models;
 
 namespace Dictionary.Api.Providers.Oxford;
 
-public sealed class OxfordDictionaryProvider(HttpClient httpClient) : IDictionaryProvider<OxfordDictionaryEntry>
+public sealed class OxfordDictionaryProvider(HttpClient httpClient) 
+    : IDictionaryProvider<OxfordDictionaryEntry>
 {
     public string SourceName => OxfordHtmlParser.SourceName;
 

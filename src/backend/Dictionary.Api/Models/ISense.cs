@@ -9,10 +9,10 @@ namespace Dictionary.Api.Models;
 /// </summary>
 public interface ISense
 {
-    string? Definition { get; }
-    string? Grammar { get; }
-    string? Register { get; }
-    IReadOnlyList<string> Synonyms { get; }
-    IReadOnlyList<string> Antonyms { get; }
-    IReadOnlyList<IExample> Examples { get; }
+    // string? Definition { get; }
+    // string? Grammar { get; }
+    // string? Register { get; }
+    // IReadOnlyList<string> Synonyms { get; }
+    // IReadOnlyList<string> Antonyms { get; }
+    // IReadOnlyList<IExample> Examples { get; }
 }

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Dictionary.Api.Http;
 using Dictionary.Api.Models;
@@ -25,6 +26,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
+    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
     options.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
     {
         Modifiers = { DictionaryEntryJsonPolymorphism.Apply },

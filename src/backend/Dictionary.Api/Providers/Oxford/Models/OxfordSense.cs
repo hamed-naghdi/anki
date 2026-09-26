@@ -25,7 +25,7 @@ public sealed class OxfordSense : ISense
     /// <summary>Whether this specific sense is flagged as an Oxford 3000/5000 keyword sense.</summary>
     public bool IsKeyword { get; init; }
 
-    public required IReadOnlyList<OxfordExample> Examples { get; init; }
+    public required IReadOnlyList<object> Examples { get; init; }
 
     /// <summary>Subject-area tags Oxford attaches to this specific sense, e.g. "Health and Fitness" at CEFR "a1" for one sense of "walk".</summary>
     public required IReadOnlyList<OxfordSenseTopic> Topics { get; init; }
@@ -42,5 +42,5 @@ public sealed class OxfordSense : ISense
     /// </summary>
     public string? PhrasalVerbPattern { get; init; }
 
-    IReadOnlyList<IExample> ISense.Examples => Examples;
+    // IReadOnlyList<IExample> ISense.Examples => Examples;
 }

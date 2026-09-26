@@ -4,7 +4,8 @@ using Dictionary.Api.Providers.Longman.Models;
 
 namespace Dictionary.Api.Providers.Longman;
 
-public sealed partial class LongmanDictionaryProvider(HttpClient httpClient) : IDictionaryProvider<LongmanDictionaryEntry>
+public sealed partial class LongmanDictionaryProvider(HttpClient httpClient) 
+    : IDictionaryProvider<LongmanDictionaryEntry>
 {
     public string SourceName => LongmanHtmlParser.SourceName;
 

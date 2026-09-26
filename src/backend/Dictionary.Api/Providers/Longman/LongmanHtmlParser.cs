@@ -413,34 +413,30 @@ public static class LongmanHtmlParser
     /// label (e.g. "curiosity about") is attached directly to the examples inside that group,
     /// since that's the specific set of examples it actually describes.
     /// </summary>
-    private static List<LongmanExample> ExtractExamples(IElement senseElement)
+    private static List<IExample> ExtractExamples(IElement senseElement)
     {
-        var examples = new List<LongmanExample>();
+        var result = new List<IExample>();
 
         foreach (var child in senseElement.Children)
         {
             if (child.ClassList.Contains("EXAMPLE"))
             {
-                examples.Add(ExtractExample(child));
+                var example = ExtractExample(child);
+                result.Add(example);
             }
             else if (child.ClassList.Contains("ColloExa"))
             {
                 var collocation = ExtractText(child, ".COLLO");
-                var note = collocation is null ? null : $"Collocation: {collocation}";
+                var glossary = ExtractText(child, ".GLOSS");
                 var nested = child.Children.Where(c => c.ClassList.Contains("EXAMPLE")).ToList();
 
-                if (nested.Count > 0)
+                var collocations = new LongmanCollectionExample
                 {
-                    examples.AddRange(nested.Select(ex => ExtractExample(ex, note)));
-                }
-                else if (collocation is not null)
-                {
-                    examples.Add(new LongmanExample
-                    {
-                        Segments = [new TextSegment { Text = collocation, IsEmphasized = false }],
-                        Note = "Collocation",
-                    });
-                }
+                    Collection = collocation ?? string.Empty,
+                    Glossary = glossary,
+                    Examples = [.. nested.Select(ExtractExample)]
+                };
+                result.Add(collocations);
             }
             else if (child.ClassList.Contains("GramExa"))
             {
@@ -453,28 +449,25 @@ public static class LongmanHtmlParser
                 var pattern = string.IsNullOrEmpty(propForm) ? null : propForm;
 
                 var nested = child.Children.Where(c => c.ClassList.Contains("EXAMPLE"));
-                examples.AddRange(nested.Select(ex => ExtractExample(ex, pattern: pattern)));
+                
+                var grammarExample = new LongmanGrammarExample
+                {
+                    Pattern = pattern ?? string.Empty,
+                    Examples = [.. nested.Select(ExtractExample)]
+                };
+                result.Add(grammarExample);
             }
         }
 
-        return examples;
+        return result;
     }
 
-    private static LongmanExample ExtractExample(IElement exampleElem, string? note = null, string? pattern = null)
+    private static LongmanExample ExtractExample(IElement exampleElem)
     {
         var audio = ExtractSpeakerAudio(exampleElem, accentClass: null);
-        var glossary = ExtractText(exampleElem, ".GLOSS");
         var segments = ExtractTextSegments(exampleElem, "COLLOINEXA", ".GLOSS", ".speaker");
 
-        var combinedNote = (note, glossary) switch
-        {
-            (not null, not null) => $"{note}; {glossary}",
-            (not null, null) => note,
-            (null, not null) => glossary,
-            _ => null,
-        };
-
-        return new LongmanExample { Segments = segments, AudioUrl = audio, Note = combinedNote, Pattern = pattern };
+        return new LongmanExample { Segments = segments, AudioUrl = audio };
     }
 
     /// <summary>
