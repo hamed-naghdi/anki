@@ -333,7 +333,7 @@ public static partial class OxfordHtmlParser
     /// "Is it true she's leaving?"), distinct from the sense-wide patterns already collected
     /// in <see cref="OxfordSense.Patterns"/>.
     /// </summary>
-    private static List<OxfordExample> ExtractExamples(IElement senseElement)
+    private static List<IExample> ExtractExamples(IElement senseElement)
     {
         var examplesList = senseElement.Children.FirstOrDefault(c => c.ClassList.Contains("examples"));
         if (examplesList is null)
@@ -341,7 +341,7 @@ public static partial class OxfordHtmlParser
             return [];
         }
 
-        var examples = new List<OxfordExample>();
+        var result = new List<IExample>();
 
         foreach (var item in examplesList.Children)
         {
@@ -355,15 +355,16 @@ public static partial class OxfordHtmlParser
             var note = ExtractText(textElement, ".gloss");
             var segments = ExtractTextSegments(textElement, "cl", ".gloss");
 
-            examples.Add(new OxfordExample
+            var example = new OxfordExample
             {
                 Segments = segments,
                 Note = note,
                 Pattern = NullIfEmpty(pattern),
-            });
+            };
+            result.Add(example);
         }
 
-        return examples;
+        return result;
     }
 
     private static List<Pronunciation> ExtractPronunciations(IElement? webtop)

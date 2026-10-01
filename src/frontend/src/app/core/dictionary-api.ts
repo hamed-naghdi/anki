@@ -34,38 +34,78 @@ export const DICTIONARY_SOURCES: readonly DictionarySourceOption[] = [
 
 export interface PhoneticVariant {
   ipa: string;
-  audioUrl: string | null;
+  audioUrl?: string | null;
 }
 
 export interface Pronunciation {
-  label: string | null;
+  label?: string | null;
   british: PhoneticVariant[];
   american: PhoneticVariant[];
 }
 
 export interface InflectionForm {
-  label: string | null;
+  label?: string | null;
   form: string;
-  pronunciation: Pronunciation | null;
+  pronunciation?: Pronunciation | null;
 }
 
+// The backend omits default values (null, false, 0) from its JSON, so every optional field below
+// can arrive as `undefined` rather than `null` - always test them for truthiness / `== null`, never
+// `=== null`.
 export interface TextSegment {
   text: string;
-  isEmphasized: boolean;
+  isEmphasized?: boolean;
 }
 
-export interface DictionaryExample {
+/**
+ * A single example sentence. `sourceType` is missing on cards saved before the backend started
+ * tagging examples - those were always this plain shape (Longman's then carried `pattern`/`note`
+ * here too), so a missing tag means "simple example".
+ */
+export interface SimpleExample {
+  sourceType?: 'LongmanExample' | 'OxfordExample';
   segments: TextSegment[];
-  audioUrl: string | null;
-  note: string | null;
-  /** A collocation/grammar pattern this example illustrates (e.g. "buy somebody something") - provider-specific extra, kept here the same way homographNumber/frequencyLabels are on DictionaryEntry. */
+  audioUrl?: string | null;
+  note?: string | null;
+  /** A collocation/grammar pattern this example illustrates (e.g. "buy somebody something") - Oxford only now; Longman groups these instead (see below). */
   pattern?: string | null;
 }
 
+/** Longman's bold collocation (e.g. "make a hole/dent/mark etc") with the examples that illustrate it. */
+export interface LongmanCollocationExample {
+  sourceType: 'LongmanCollectionExample';
+  collection: string;
+  glossary?: string | null;
+  examples?: SimpleExample[];
+}
+
+/** Longman's grammar pattern (e.g. "make somebody something") with the examples that illustrate it. */
+export interface LongmanGrammarExample {
+  sourceType: 'LongmanGrammarExample';
+  pattern: string;
+  examples?: SimpleExample[];
+}
+
+export type ExampleGroup = LongmanCollocationExample | LongmanGrammarExample;
+
+export type DictionaryExample = SimpleExample | ExampleGroup;
+
+export function isExampleGroup(example: DictionaryExample): example is ExampleGroup {
+  return (
+    example.sourceType === 'LongmanCollectionExample' ||
+    example.sourceType === 'LongmanGrammarExample'
+  );
+}
+
+/** The bold phrase a group of examples hangs off - its collocation or its grammar pattern. */
+export function exampleGroupPhrase(group: ExampleGroup): string {
+  return group.sourceType === 'LongmanCollectionExample' ? group.collection : group.pattern;
+}
+
 export interface DictionarySense {
-  definition: string | null;
-  grammar: string | null;
-  register: string | null;
+  definition?: string | null;
+  grammar?: string | null;
+  register?: string | null;
   synonyms: string[];
   antonyms: string[];
   examples: DictionaryExample[];
@@ -84,7 +124,7 @@ export interface DictionarySense {
 /** A short vocabulary badge with a human-readable explanation, e.g. Longman's frequency dots ("●●○") or S1/W1 top-1000-word markers. */
 export interface UsageLabel {
   code: string;
-  description: string | null;
+  description?: string | null;
 }
 
 /**
@@ -98,8 +138,8 @@ export interface DictionaryEntry {
   provider: string;
   /** The actual headword this entry is for, as the source printed it - can differ from the searched term (e.g. a multi-word search with no entry of its own, where the source fell back to a related single word). */
   headword: string;
-  partOfSpeech: string | null;
-  grammar: string | null;
+  partOfSpeech?: string | null;
+  grammar?: string | null;
   pronunciations: Pronunciation[];
   inflectionForms: InflectionForm[];
   senses: DictionarySense[];
@@ -116,7 +156,7 @@ export interface DictionaryEntry {
 export interface DictionarySourceResult {
   source: string;
   entries: DictionaryEntry[];
-  error: string | null;
+  error?: string | null;
 }
 
 export interface DictionarySearchResult {

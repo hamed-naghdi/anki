@@ -45,7 +45,7 @@ public class OxfordHtmlParserTests
         Assert.Contains("desire to know", firstSense.Definition);
 
         // These patterns describe the whole sense, not one specific example.
-        Assert.All(firstSense.Examples, example => Assert.Null(example.Pattern));
+        Assert.All(firstSense.Examples.Cast<OxfordExample>(), example => Assert.Null(example.Pattern));
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class OxfordHtmlParserTests
         Assert.Equal("a1", entry.KeywordLevel);
         Assert.Contains(entry.AcademicWordLists, label => label.Code == "OPAL S");
 
-        var allExamples = entry.Senses.SelectMany(s => s.Examples).ToList();
+        var allExamples = entry.Senses.SelectMany(s => s.Examples).Cast<OxfordExample>().ToList();
 
         var patternedExample = Assert.Single(allExamples, e => e.Pattern == "be true (that)…");
         Assert.Equal("Is it true she's leaving?", Text(patternedExample));
@@ -110,7 +110,7 @@ public class OxfordHtmlParserTests
 
         Assert.Equal("informal", firstSense.Register);
         Assert.Equal("a2", firstSense.CefrLevel);
-        Assert.Contains(firstSense.Examples, e => e.Segments.Any(s => s.IsEmphasized && s.Text == "big/little guy"));
+        Assert.Contains(firstSense.Examples.Cast<OxfordExample>(), e => e.Segments.Any(s => s.IsEmphasized && s.Text == "big/little guy"));
     }
 
     [Fact]

@@ -38,7 +38,13 @@ import { VolumeUp } from '@primeicons/angular/volume-up';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DeckService } from '../core/deck.service';
 import { AnkiModelService } from '../core/anki-model.service';
-import { renderCardSide } from '../card-template/render-card';
+import {
+  exampleGroupOf,
+  exampleOf,
+  examplePrefix,
+  isNestedExample,
+  renderCardSide,
+} from '../card-template/render-card';
 import {
   CARD_STATE_VERSION,
   CardState,
@@ -48,7 +54,6 @@ import {
 import {
   DICTIONARY_SOURCES,
   DictionaryEntry,
-  DictionaryExample,
   DictionarySearchResult,
   DictionarySense,
   DictionarySourceOption,
@@ -57,7 +62,11 @@ import {
   LanguageOption,
   PhoneticVariant,
   Pronunciation,
+  ExampleGroup,
+  SimpleExample,
   dictionaryLookupRequest,
+  exampleGroupPhrase,
+  isExampleGroup,
 } from '../core/dictionary-api';
 
 // Front and back look at the exact same result data, but everything about how a person interacts
@@ -73,6 +82,8 @@ type CardSide = 'front' | 'back';
 // specific form (e.g. "plural: wives"), not the whole inflectionForms list - that list is instead a
 // pure grouping node (EntryFieldGroup below) so each form can be selected independently. The
 // `sense*` kinds and `example` work the same way, one level deeper (per sense, then per example).
+// `exampleHeader` is the bold phrase of a Longman collocation/grammar-pattern example group (e.g.
+// "make somebody something"), selectable on its own apart from the examples nested under it.
 type EntryFieldKind =
   | 'headword'
   | 'partOfSpeech'
@@ -93,6 +104,7 @@ type EntryFieldKind =
   | 'sensePhrasalVerbPattern'
   | 'senseSynonyms'
   | 'senseAntonyms'
+  | 'exampleHeader'
   | 'example';
 
 // "Longman:Entry 2:Pronunciation (UK)" when a source returned more than one entry for the search
@@ -121,8 +133,12 @@ export interface EntryFieldData {
   // Set for every sense-scoped kind (senseImage/senseDefinition/senseGrammar/senseRegister/
   // senseSynonyms/senseAntonyms/example) - which of entry.senses this leaf belongs to.
   senseIndex?: number;
-  // Only set for kind 'example' - which of that sense's examples this leaf is.
+  // Set for kinds 'example'/'exampleHeader' - which of that sense's examples this leaf is (for a
+  // nested example or a header, the collocation/grammar group it belongs to).
   exampleIndex?: number;
+  // Only set for an 'example' nested inside a collocation/grammar group - which of that group's
+  // own examples this leaf is.
+  subExampleIndex?: number;
 }
 
 // A purely organizational tree node (e.g. "Inflection forms") that groups several selectable
@@ -429,11 +445,19 @@ export class CardNew {
     const field = (
       kind: EntryFieldKind,
       label: string,
-      extra?: Pick<EntryFieldData, 'formIndex' | 'senseIndex' | 'exampleIndex'>,
+      extra?: Pick<EntryFieldData, 'formIndex' | 'senseIndex' | 'exampleIndex' | 'subExampleIndex'>,
     ): TreeNode => {
+      // A plain example keeps its original "-example-N" key so cards saved before example groups
+      // existed still resolve; a group's header/nested examples hang off that same prefix.
+      const exampleSuffix =
+        kind === 'exampleHeader'
+          ? '-header'
+          : extra?.subExampleIndex !== undefined
+            ? `-${extra.subExampleIndex}`
+            : '';
       const key =
         extra?.exampleIndex !== undefined
-          ? `${entryKey}-sense-${extra.senseIndex}-example-${extra.exampleIndex}`
+          ? `${entryKey}-sense-${extra.senseIndex}-example-${extra.exampleIndex}${exampleSuffix}`
           : extra?.senseIndex !== undefined
             ? `${entryKey}-sense-${extra.senseIndex}-${kind}`
             : extra?.formIndex !== undefined
@@ -559,9 +583,7 @@ export class CardNew {
           key: `${entryKey}-sense-${senseIndex}-examples`,
           label: 'Examples',
           data: { isGroup: true, label: 'Examples' } satisfies EntryFieldGroup,
-          children: sense.examples.map((_, exampleIndex) =>
-            field('example', `Example ${exampleIndex + 1}`, { senseIndex, exampleIndex }),
-          ),
+          children: this.exampleNodes(sense.examples, senseIndex, field),
         });
       }
       if (senseChildren.length) {
@@ -587,6 +609,47 @@ export class CardNew {
     return nodes;
   }
 
+  // A plain example is one leaf. A Longman collocation/grammar group becomes its own sub-group -
+  // the phrase as an `exampleHeader` leaf, then one leaf per example under it - so checking the
+  // group places the phrase with its examples, while each stays independently selectable. A group
+  // with no examples of its own is just the header leaf. Example numbering runs across the whole
+  // sense (nested ones included), so "Example 3" stays unambiguous in the reorder list.
+  private exampleNodes(
+    examples: DictionarySense['examples'],
+    senseIndex: number,
+    field: (
+      kind: EntryFieldKind,
+      label: string,
+      extra?: Pick<EntryFieldData, 'senseIndex' | 'exampleIndex' | 'subExampleIndex'>,
+    ) => TreeNode,
+  ): TreeNode[] {
+    let ordinal = 0;
+    const exampleLeaf = (exampleIndex: number, subExampleIndex?: number) =>
+      field('example', `Example ${++ordinal}`, { senseIndex, exampleIndex, subExampleIndex });
+
+    return examples.map((example, exampleIndex) => {
+      if (!isExampleGroup(example)) {
+        return exampleLeaf(exampleIndex);
+      }
+      const kindLabel =
+        example.sourceType === 'LongmanCollectionExample' ? 'Collocation' : 'Pattern';
+      const header = field('exampleHeader', kindLabel, { senseIndex, exampleIndex });
+      const nested = (example.examples ?? []).map((_, subExampleIndex) =>
+        exampleLeaf(exampleIndex, subExampleIndex),
+      );
+      if (!nested.length) {
+        return header;
+      }
+      const label = `${kindLabel}: ${exampleGroupPhrase(example)}`;
+      return {
+        key: `${header.key}-group`,
+        label,
+        data: { isGroup: true, label } satisfies EntryFieldGroup,
+        children: [header, ...nested],
+      };
+    });
+  }
+
   // "1. to get something by paying money for it" for a sense's group label in the results tree -
   // falls back to a plain ordinal when a sense has no definition text (rare, but some providers
   // return grammar/examples-only sub-entries).
@@ -604,7 +667,7 @@ export class CardNew {
   // sends (which also includes e.g. "past tense"-labelled pronunciations for irregular verbs).
   protected primaryPronunciation(entry: DictionaryEntry): Pronunciation | null {
     return (
-      entry.pronunciations.find((pronunciation) => pronunciation.label === null) ??
+      entry.pronunciations.find((pronunciation) => pronunciation.label == null) ??
       entry.pronunciations[0] ??
       null
     );
@@ -628,11 +691,27 @@ export class CardNew {
     return field.senseIndex !== undefined ? (field.entry.senses[field.senseIndex] ?? null) : null;
   }
 
-  protected exampleFor(field: EntryFieldData): DictionaryExample | null {
-    if (field.exampleIndex === undefined) {
-      return null;
-    }
-    return this.senseFor(field)?.examples[field.exampleIndex] ?? null;
+  protected readonly exampleGroupPhrase = exampleGroupPhrase;
+
+  protected exampleFor(field: EntryFieldData): SimpleExample | null {
+    return exampleOf(field);
+  }
+
+  protected exampleGroupFor(field: EntryFieldData): ExampleGroup | null {
+    return exampleGroupOf(field);
+  }
+
+  protected examplePrefixFor(field: EntryFieldData, nested: boolean): string | null {
+    return examplePrefix(field, nested);
+  }
+
+  // Whether a placed example sits in the same group as its collocation/grammar header, and so is
+  // rendered indented under it rather than carrying the phrase as its own prefix.
+  protected isNestedIn(group: TreeNode, field: PlacedFieldData): boolean {
+    return isNestedExample(
+      this.groupFieldsFor(group).map((placed) => placed.field),
+      field,
+    );
   }
 
   // Longman regularly prints IPA without its enclosing slashes (e.g. "friː" instead of "/friː/"),
@@ -706,6 +785,10 @@ export class CardNew {
         return (this.senseFor(field)?.synonyms ?? []).join(', ');
       case 'senseAntonyms':
         return (this.senseFor(field)?.antonyms ?? []).join(', ');
+      case 'exampleHeader': {
+        const group = this.exampleGroupFor(field);
+        return group ? exampleGroupPhrase(group) : '';
+      }
       case 'example':
         return (this.exampleFor(field)?.segments ?? []).map((segment) => segment.text).join('');
     }
@@ -853,7 +936,7 @@ export class CardNew {
   // (e.g. "[transitive] to obtain by paying money SYN buy OPP sell").
   private static readonly STACKED_FIELD_KINDS: ReadonlySet<PlacedFieldData['kind']> = new Set<
     PlacedFieldData['kind']
-  >(['inflectionForm', 'example', 'richText', 'senseImage']);
+  >(['inflectionForm', 'exampleHeader', 'example', 'richText', 'senseImage']);
 
   protected inlineFieldsFor(group: TreeNode): PlacedField[] {
     return this.groupFieldsFor(group).filter(

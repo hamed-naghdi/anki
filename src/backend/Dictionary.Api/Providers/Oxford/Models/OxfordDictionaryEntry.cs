@@ -36,6 +36,5 @@ public sealed class OxfordDictionaryEntry : IDictionaryEntry
     /// <summary>Idioms built on the headword, with their definitions embedded here (see <see cref="OxfordIdiom"/>) - kept out of <see cref="Senses"/> so they aren't mistaken for a literal meaning of the headword.</summary>
     public required IReadOnlyList<OxfordIdiom> Idioms { get; init; }
 
-    IReadOnlyList<ISense> IDictionaryEntry.Senses => Senses;
     IReadOnlyList<IIdiom> IDictionaryEntry.Idioms => Idioms;
 }

@@ -1,5 +1,12 @@
 import type { TreeNode } from 'primeng/api';
-import type { DictionaryEntry, PhoneticVariant } from '../core/dictionary-api';
+import {
+  exampleGroupPhrase,
+  isExampleGroup,
+  type DictionaryEntry,
+  type ExampleGroup,
+  type PhoneticVariant,
+  type SimpleExample,
+} from '../core/dictionary-api';
 import type { EntryFieldData, PlacedField, PlacedFieldData } from '../card-new/card-new';
 
 /**
@@ -24,6 +31,7 @@ import type { EntryFieldData, PlacedField, PlacedFieldData } from '../card-new/c
 // than wrapping inline with the badges/tags.
 const STACKED_KINDS: ReadonlySet<PlacedFieldData['kind']> = new Set<PlacedFieldData['kind']>([
   'inflectionForm',
+  'exampleHeader',
   'example',
   'richText',
   'senseImage',
@@ -50,7 +58,7 @@ function formatIpa(ipa: string): string {
 }
 
 function primaryPronunciation(entry: DictionaryEntry) {
-  return entry.pronunciations.find((p) => p.label === null) ?? entry.pronunciations[0] ?? null;
+  return entry.pronunciations.find((p) => p.label == null) ?? entry.pronunciations[0] ?? null;
 }
 
 function britishPhonetic(entry: DictionaryEntry): PhoneticVariant | null {
@@ -81,10 +89,51 @@ function senseOf(field: EntryFieldData) {
   return field.senseIndex !== undefined ? (field.entry.senses[field.senseIndex] ?? null) : null;
 }
 
-function exampleOf(field: EntryFieldData) {
-  return field.exampleIndex !== undefined
-    ? (senseOf(field)?.examples[field.exampleIndex] ?? null)
+// The collocation/grammar group an 'exampleHeader' or nested 'example' belongs to.
+export function exampleGroupOf(field: EntryFieldData): ExampleGroup | null {
+  if (field.exampleIndex === undefined) return null;
+  const example = senseOf(field)?.examples[field.exampleIndex];
+  return example && isExampleGroup(example) ? example : null;
+}
+
+// The sentence an 'example' leaf points at - either a plain example, or one nested in a group.
+export function exampleOf(field: EntryFieldData): SimpleExample | null {
+  if (field.exampleIndex === undefined) return null;
+  const example = senseOf(field)?.examples[field.exampleIndex];
+  if (!example) return null;
+  if (!isExampleGroup(example)) return example;
+  return field.subExampleIndex !== undefined
+    ? (example.examples?.[field.subExampleIndex] ?? null)
     : null;
+}
+
+/**
+ * Whether `field` is a nested example whose own group header also sits in `fields` (one card
+ * group) - it then renders indented under that header instead of repeating the phrase itself.
+ */
+export function isNestedExample(
+  fields: readonly PlacedFieldData[],
+  field: PlacedFieldData,
+): boolean {
+  if (field.kind !== 'example' || field.subExampleIndex === undefined) return false;
+  return fields.some(
+    (other) =>
+      other.kind === 'exampleHeader' &&
+      other.entryKey === field.entryKey &&
+      other.senseIndex === field.senseIndex &&
+      other.exampleIndex === field.exampleIndex,
+  );
+}
+
+// The "pattern:" lead-in printed before an example's sentence: Oxford's own per-example pattern,
+// or - for a nested Longman example placed away from its header - that group's phrase, so the
+// example doesn't lose the context it illustrates.
+export function examplePrefix(field: EntryFieldData, nested: boolean): string | null {
+  const own = exampleOf(field)?.pattern;
+  if (own) return own;
+  if (nested || field.subExampleIndex === undefined) return null;
+  const group = exampleGroupOf(field);
+  return group ? exampleGroupPhrase(group) || null : null;
 }
 
 function inflectionOf(field: EntryFieldData) {
@@ -138,7 +187,8 @@ function keywordBadges(
 }
 
 // Mirror of the #fieldChip template's @switch - the value of a single field, no "Label:" prefix.
-function renderChip(field: PlacedFieldData): string {
+// `nested` is isNestedExample's answer for this field within its group.
+function renderChip(field: PlacedFieldData, nested = false): string {
   switch (field.kind) {
     case 'headword':
       return `<span class="pd-text">${esc(field.entry.headword)}</span>`;
@@ -229,15 +279,24 @@ function renderChip(field: PlacedFieldData): string {
       if (!sense?.antonyms.length) return '';
       return `<span class="pd-relation"><span class="pd-badge pd-badge-ant">Opp</span><span class="pd-text">${esc(sense.antonyms.join(', '))}</span></span>`;
     }
+    case 'exampleHeader': {
+      const group = exampleGroupOf(field);
+      if (!group) return '';
+      const glossary =
+        group.sourceType === 'LongmanCollectionExample' && group.glossary
+          ? `<span class="pd-example-note">${esc(group.glossary)}</span>`
+          : '';
+      return `<span class="pd-example-heading"><span class="pd-example-phrase">${esc(exampleGroupPhrase(group))}</span>${glossary}</span>`;
+    }
     case 'example': {
       const example = exampleOf(field);
       if (!example) return '';
       const lead = example.audioUrl
         ? `<button type="button" class="pd-example-lead" title="Play example" onclick="${playAudio(example.audioUrl)}">${icon('volume-up', 'muted')}</button>`
         : `<span class="pd-example-lead pd-example-bullet" aria-hidden="true">&bull;</span>`;
-      const pattern = example.pattern
-        ? `<span class="pd-example-pattern">${esc(example.pattern)}:</span>`
-        : '';
+      const prefix = examplePrefix(field, nested);
+      const pattern = prefix ? `<span class="pd-example-pattern">${esc(prefix)}:</span>` : '';
+      const nestedClass = nested ? ' pd-example-nested' : '';
       const text = example.segments
         .map((segment) =>
           segment.isEmphasized
@@ -246,7 +305,7 @@ function renderChip(field: PlacedFieldData): string {
         )
         .join('');
       const note = example.note ? `<span class="pd-example-note">${esc(example.note)}</span>` : '';
-      return `<span class="pd-example">${lead}<span class="pd-example-content"><span class="pd-example-text">${pattern}${text}</span>${note}</span></span>`;
+      return `<span class="pd-example${nestedClass}">${lead}<span class="pd-example-content"><span class="pd-example-text">${pattern}${text}</span>${note}</span></span>`;
     }
     case 'richText': {
       const rtlClass = field.direction === 'rtl' ? ' pd-rich-text-rtl' : '';
@@ -305,7 +364,7 @@ function renderGroup(group: TreeNode): string {
   const numberHtml = number !== null ? `<span class="pd-group-number">${number}</span>` : '';
   const inlineHtml = `<div class="pd-group-inline">${inline.map(renderInlineItem).join('')}</div>`;
   const stackedHtml = stacked.length
-    ? `<div class="pd-group-stacked">${stacked.map((field) => `<div>${renderChip(field)}</div>`).join('')}</div>`
+    ? `<div class="pd-group-stacked">${stacked.map((field) => `<div>${renderChip(field, isNestedExample(fields, field))}</div>`).join('')}</div>`
     : '';
 
   return `<div class="${cls.join(' ')}">${numberHtml}${inlineHtml}${stackedHtml}</div>`;

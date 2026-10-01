@@ -34,6 +34,5 @@ public sealed class LongmanDictionaryEntry : IDictionaryEntry
     public required IReadOnlyList<LongmanCollocationGroup> CollocationGroups { get; init; }
     public required IReadOnlyList<ThesaurusSection> ThesaurusSections { get; init; }
 
-    IReadOnlyList<ISense> IDictionaryEntry.Senses => Senses;
     IReadOnlyList<IIdiom> IDictionaryEntry.Idioms => Idioms;
 }

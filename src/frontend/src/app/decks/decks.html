@@ -23,9 +23,24 @@
             <p-treetable-toggler [rowNode]="rowNode" />
             {{ node.label }}
           </td>
-          <td class="text-right text-blue-500">{{ statsByPath().get(rowData)?.new_count ?? 0 }}</td>
-          <td class="text-right text-red-500">{{ statsByPath().get(rowData)?.learn_count ?? 0 }}</td>
-          <td class="text-right text-green-600">{{ statsByPath().get(rowData)?.review_count ?? 0 }}</td>
+          @let newCount = statsByPath().get(rowData)?.new_count ?? 0 ;
+          <td [class]="'text-right ' + (newCount === 0 ? 'text-gray-500' : 'text-blue-500')">
+            {{ newCount }}
+          </td>
+
+          @let learnCount = statsByPath().get(rowData)?.learn_count ?? 0;
+          <td class="text-right"
+              [class.text-gray-500]="learnCount === 0"
+              [class.text-red-500]="learnCount !== 0">
+            {{ learnCount }}
+          </td>
+
+          @let reviewCount = statsByPath().get(rowData)?.review_count ?? 0;
+          <td class="text-right"
+              [class.text-gray-500]="reviewCount === 0"
+              [class.text-green-600]="reviewCount !==0">
+            {{ reviewCount }}
+          </td>
         </tr>
       </ng-template>
       <ng-template #emptymessage>
