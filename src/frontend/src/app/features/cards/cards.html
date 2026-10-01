@@ -1,0 +1,69 @@
+<div class="flex w-full max-w-2xl flex-col gap-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-lg font-semibold">Cards</h1>
+    <a pButton size="small" routerLink="/cards/new">
+      <svg data-p-icon="plus"></svg>
+      New
+    </a>
+  </div>
+
+  <p-iconfield>
+    <p-inputicon>
+      <svg data-p-icon="search"></svg>
+    </p-inputicon>
+    <input
+      pInputText
+      type="text"
+      placeholder="Search cards…"
+      class="w-full"
+      [formField]="filterForm.term"
+    />
+    @if (filter().term) {
+      <p-inputicon class="cursor-pointer" (click)="clearFilter()">
+        <svg data-p-icon="times"></svg>
+      </p-inputicon>
+    }
+  </p-iconfield>
+
+  @if (cards.error(); as error) {
+    <span class="text-sm text-red-500">{{ error.message }}</span>
+  } @else {
+    <div class="overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700">
+      @if (cards.isLoading()) {
+        <p class="px-4 py-6 text-center text-sm text-surface-500">Loading cards…</p>
+      } @else if (!cards.hasValue() || !cards.value().length) {
+        <p class="px-4 py-6 text-center text-sm text-surface-500">No dictionary cards yet.</p>
+      } @else if (!filteredCards().length) {
+        <p class="px-4 py-6 text-center text-sm text-surface-500">
+          No cards match “{{ filter().term }}”.
+        </p>
+      } @else {
+        <ul class="divide-y divide-surface-200 dark:divide-surface-700">
+          @for (card of filteredCards(); track card.noteId) {
+            <li>
+              @if (card.editable) {
+                <a
+                  [routerLink]="['/cards', card.noteId, 'edit']"
+                  class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-surface-100 dark:hover:bg-surface-800"
+                >
+                  <span class="font-medium text-(--p-text-color)">{{ card.word }}</span>
+                  <span class="text-xs text-(--p-text-muted-color)">{{ card.deck }}</span>
+                </a>
+              } @else {
+                <div
+                  class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                  title="Added before card editing was supported — re-create it to edit"
+                >
+                  <span class="text-(--p-text-muted-color)">{{ card.word }}</span>
+                  <span class="text-xs text-(--p-text-muted-color)"
+                    >{{ card.deck }} · not editable</span
+                  >
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</div>

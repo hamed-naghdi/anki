@@ -1,0 +1,123 @@
+@if (store.isEditing) {
+  <nav class="flex items-center gap-2 text-sm">
+    <a routerLink="/cards" class="text-(--p-text-muted-color) hover:underline">Cards</a>
+    <span class="text-(--p-text-muted-color)">/</span>
+    <span class="font-medium">Editing “{{ store.word() }}”</span>
+  </nav>
+}
+
+<app-editor-toolbar />
+
+@if (store.droppedFields(); as dropped) {
+  <p-message severity="warn">
+    {{ dropped }} field(s) couldn’t be restored — the dictionary result changed since this card was
+    saved. Saving now will drop them.
+  </p-message>
+}
+
+@if (store.saveResult(); as result) {
+  @if (result.ok) {
+    <p-message severity="success">
+      {{ result.updated ? 'Saved' : 'Added' }} to {{ store.decks.selectedDeck() }} as a
+      {{ store.languageLabel() }}-Dictionary note.
+      <button
+        pButton
+        link
+        type="button"
+        class="p-0! align-baseline"
+        (click)="store.showInAnki(result.noteId)"
+      >
+        Show in Anki
+      </button>
+      @if (!result.updated) {
+        <button
+          pButton
+          link
+          type="button"
+          class="p-0! align-baseline"
+          (click)="editSavedCard(result.noteId)"
+        >
+          Edit
+        </button>
+      }
+    </p-message>
+  } @else {
+    <p-message severity="error">
+      Couldn’t {{ store.isEditing ? 'save' : 'add' }} the card: {{ result.message }}
+    </p-message>
+  }
+}
+
+@if (store.pushStylingResult(); as result) {
+  @if (result.ok) {
+    <p-message severity="success">
+      Pushed the current styling to the {{ store.languageLabel() }}-Dictionary note type in Anki.
+    </p-message>
+  } @else {
+    <p-message severity="error">Couldn’t update the Anki styling: {{ result.message }}</p-message>
+  }
+}
+
+<section class="mt-2">
+  @switch (store.status()) {
+    @case ('idle') {
+      <div class="rounded-2xl p-8 text-center ring-1 dark:ring-white/10">
+        <p class="font-serif text-lg text-(--p-text-color)">Search a word to get started</p>
+        <p class="mt-1 text-sm text-(--p-text-muted-color)">
+          Definitions from the selected dictionaries will appear here.
+        </p>
+      </div>
+    }
+    @case ('loading') {
+      <div class="rounded-2xl p-8 text-center ring-1 dark:ring-white/10">
+        <p class="text-sm text-(--p-text-muted-color)">
+          {{ store.isEditing ? 'Loading card…' : 'Looking up “' + store.word() + '”…' }}
+        </p>
+      </div>
+    }
+    @case ('error') {
+      <div
+        class="rounded-2xl bg-red-50 p-6 text-sm text-red-600 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-900"
+      >
+        {{ store.error() }}
+      </div>
+    }
+    @case ('ready') {
+      <div class="flex flex-col gap-4 lg:flex-row">
+        <aside
+          class="flex w-full flex-col gap-3 rounded-2xl p-4 ring-1 lg:w-40 lg:shrink-0 dark:ring-white/10"
+        >
+          <span class="text-xs font-semibold tracking-wide text-(--p-text-muted-color) uppercase"
+            >Sources</span
+          >
+          @for (source of store.resultSources(); track source) {
+            <label class="flex items-center gap-2 text-sm text-(--p-text-color)">
+              <p-checkbox [binary]="true" [formField]="sourcesForm[source]" />
+              {{ source }}
+            </label>
+          } @empty {
+            <p class="text-sm text-(--p-text-muted-color)">No sources returned results.</p>
+          }
+        </aside>
+
+        <p-tabs class="flex-1" [value]="store.activeSide()" (valueChange)="selectSide($event)">
+          <p-tablist>
+            @for (side of sides; track side) {
+              <p-tab [value]="side">{{ side === 'front' ? 'Front' : 'Back' }}</p-tab>
+            }
+          </p-tablist>
+          <p-tabpanels>
+            @for (side of sides; track side) {
+              <p-tabpanel [value]="side">
+                <div class="flex flex-col gap-4 xl:flex-row">
+                  <app-results-panel [side]="side" />
+                  <app-layout-panel [side]="side" />
+                </div>
+              </p-tabpanel>
+            }
+          </p-tabpanels>
+        </p-tabs>
+      </div>
+    }
+  }
+</section>

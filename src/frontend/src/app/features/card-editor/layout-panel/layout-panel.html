@@ -1,0 +1,127 @@
+<span class="text-xs font-semibold tracking-wide text-(--p-text-muted-color) uppercase"
+  >Card preview</span
+>
+
+@if (state().layout().length) {
+  <div [cardHtml]="preview()"></div>
+} @else {
+  <p class="text-sm text-(--p-text-muted-color)">
+    Check fields in the results to preview them here.
+  </p>
+}
+
+<div class="mt-2 flex flex-wrap items-center justify-between gap-3">
+  <span class="text-xs font-semibold tracking-wide text-(--p-text-muted-color) uppercase">
+    {{ side() === 'front' ? 'Front' : 'Back' }} items · drag groups or fields to reorder, drag a
+    field onto another group to move it there
+  </span>
+  <span class="flex items-center gap-1">
+    <button pButton text size="small" type="button" (click)="store.addRichText(side(), 'ltr')">
+      <svg data-p-icon="plus" class="size-3.5"></svg>Add LTR text
+    </button>
+    <button pButton text size="small" type="button" (click)="store.addRichText(side(), 'rtl')">
+      <svg data-p-icon="plus" class="size-3.5"></svg>Add RTL text
+    </button>
+  </span>
+</div>
+
+@if (state().layout().length) {
+  <p-tree
+    [value]="nodes()"
+    [draggableNodes]="true"
+    [droppableNodes]="true"
+    [validateDrop]="true"
+    (onNodeDrop)="onDrop($event)"
+    (onNodeExpand)="setExpanded($event.node, true)"
+    (onNodeCollapse)="setExpanded($event.node, false)"
+  >
+    <!-- p-tree uses this one template for every level: a group header, and a field inside it. -->
+    <ng-template #node let-node>
+      @let data = node.data;
+      @if (data.type === 'group') {
+        <div class="flex w-full items-center justify-between gap-2">
+          <span
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-(--p-text-color)"
+          >
+            <svg data-p-icon="grip-vertical" [class]="grip"></svg>
+            {{ groupLabel(data.group) }}
+          </span>
+          <button
+            type="button"
+            [class]="iconButton"
+            title="Remove group"
+            (click)="store.removeGroup(side(), data.group.key)"
+          >
+            <svg data-p-icon="times" class="size-3"></svg>
+          </button>
+        </div>
+      } @else {
+        @let placed = data.placed;
+        @let field = placed.field;
+        <div class="flex w-full flex-col gap-1.5" [class.py-1]="field.kind === 'richText'">
+          <div class="flex items-center justify-between gap-2 text-sm">
+            <span
+              class="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-(--p-text-color)"
+            >
+              <svg data-p-icon="grip-vertical" [class]="grip"></svg>
+              {{ fieldLabel(field) }}
+              @if (field.kind === 'richText') {
+                <span class="rounded bg-black/10 px-1 text-[10px] uppercase dark:bg-white/10">{{
+                  field.direction
+                }}</span>
+              } @else if (fieldText(field); as value) {
+                <span class="truncate text-(--p-text-muted-color)"> — {{ value }}</span>
+              }
+              @if (placed.isCopy) {
+                <span class="ml-1 shrink-0 rounded bg-black/10 px-1 text-[10px] dark:bg-white/10"
+                  >copy</span
+                >
+              }
+            </span>
+            <span class="flex shrink-0 items-center gap-1">
+              @if (field.kind !== 'headword') {
+                <button
+                  type="button"
+                  [class]="iconButton"
+                  title="Duplicate"
+                  (click)="store.duplicateField(side(), placed.instanceKey)"
+                >
+                  <svg data-p-icon="plus" class="size-3"></svg>
+                </button>
+              }
+              <button
+                type="button"
+                [class]="iconButton"
+                title="Remove"
+                (click)="store.removeField(side(), placed.instanceKey)"
+              >
+                <svg data-p-icon="times" class="size-3"></svg>
+              </button>
+            </span>
+          </div>
+          @if (field.kind === 'richText') {
+            <!--
+              draggable="false" overrides the draggable="true" p-tree puts on every row - a browser
+              quirk otherwise stops some keys from typing into a textarea inside a draggable element.
+              Stopping keydown is a separate fix: p-tree's row handler treats Space/Enter/arrows/Tab
+              as tree navigation and prevents their default, even when they come from in here.
+            -->
+            <div draggable="false" (keydown)="$event.stopPropagation()">
+              <textarea
+                pTextarea
+                rows="4"
+                class="w-full font-mono text-xs"
+                [class.text-right]="field.direction === 'rtl'"
+                [dir]="field.direction"
+                [value]="field.html()"
+                (input)="editRichText(field, $event)"
+              ></textarea>
+            </div>
+          }
+        </div>
+      }
+    </ng-template>
+  </p-tree>
+} @else {
+  <p class="text-sm text-(--p-text-muted-color)">Nothing selected yet.</p>
+}

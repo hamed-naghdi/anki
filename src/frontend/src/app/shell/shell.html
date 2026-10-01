@@ -1,0 +1,82 @@
+<div class="overflow-hidden">
+  <p-sidebar-layout class="min-h-dvh! relative!">
+    @if (isMobile() && navOpen()) {
+      <p-sidebar-backdrop class="absolute!" />
+    }
+    <p-sidebar
+      id="nav"
+      side="left"
+      [collapsible]="isMobile() ? 'offcanvas' : 'icon'"
+      [overlay]="isMobile()"
+      [(open)]="navOpen"
+      width="14rem"
+    >
+      <p-sidebar-spacer />
+      <p-sidebar-aside>
+        <p-sidebar-panel>
+          <p-sidebar-header>
+            <p-sidebar-menu>
+              <p-sidebar-menu-item>
+                <button pSidebarMenuButton class="p-1!">
+                  <div
+                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-violet-500 to-indigo-600 text-white text-s font-bold leading-none"
+                  >
+                    Anki
+                  </div>
+                  <span class="font-semibold text-sm">Dictionary</span>
+                </button>
+              </p-sidebar-menu-item>
+            </p-sidebar-menu>
+          </p-sidebar-header>
+          <p-sidebar-content>
+            <p-sidebar-group>
+              <p-sidebar-group-label>Navigation</p-sidebar-group-label>
+              <p-sidebar-group-content>
+                <p-sidebar-menu>
+                  <p-sidebar-menu-item>
+                    <button
+                      pSidebarMenuButton
+                      routerLink="/"
+                      routerLinkActive
+                      #decksLink="routerLinkActive"
+                      [routerLinkActiveOptions]="{ exact: true }"
+                      [isActive]="decksLink.isActive"
+                    >
+                      <svg data-p-icon="home"></svg>
+                      <span>Decks</span>
+                    </button>
+                  </p-sidebar-menu-item>
+                  <p-sidebar-menu-item>
+                    <button
+                      pSidebarMenuButton
+                      routerLink="/cards"
+                      routerLinkActive
+                      #cardsLink="routerLinkActive"
+                      [isActive]="cardsLink.isActive"
+                    >
+                      <svg data-p-icon="clone"></svg>
+                      <span>Cards</span>
+                    </button>
+                  </p-sidebar-menu-item>
+                </p-sidebar-menu>
+              </p-sidebar-group-content>
+            </p-sidebar-group>
+          </p-sidebar-content>
+        </p-sidebar-panel>
+      </p-sidebar-aside>
+    </p-sidebar>
+    <p-sidebar-main>
+      <header
+        class="flex h-12 items-center gap-2 border-b border-surface-200 dark:border-surface-700 px-4"
+      >
+        <button pButton pSidebarTrigger target="nav" severity="secondary" text size="small">
+          <svg data-p-icon="sidebar"></svg>
+        </button>
+        <span class="text-sm font-medium flex-1">{{ pageTitle() }}</span>
+      </header>
+      <div class="flex-1 p-4 flex flex-col gap-4">
+        <router-outlet />
+      </div>
+    </p-sidebar-main>
+  </p-sidebar-layout>
+</div>

@@ -1,0 +1,58 @@
+<div class="flex items-center justify-between gap-3">
+  <h2 class="font-serif text-xl text-(--p-text-color)">{{ store.word() }}</h2>
+  @if (store.visibleSources().length) {
+    <button pButton text size="small" type="button" (click)="toggleExpandAll()">
+      {{ allExpanded() ? 'Collapse all' : 'Expand all' }}
+    </button>
+  }
+</div>
+
+@if (store.visibleSources().length) {
+  <p-accordion
+    [value]="state().expandedSources()"
+    (valueChange)="onExpandedChange($event)"
+    [multiple]="true"
+  >
+    @for (source of store.visibleSources(); track source) {
+      <p-accordion-panel [value]="source">
+        <p-accordion-header>{{ source }}</p-accordion-header>
+        <p-accordion-content>
+          <p-tree
+            [value]="treeFor(source)"
+            selectionMode="checkbox"
+            [selectionKeys]="selectionKeysFor(source)"
+            (selectionKeysChange)="store.setChecked(side(), source, $event)"
+          >
+            <ng-template #node let-node>
+              @let data = node.data;
+              @switch (data.type) {
+                @case ('entry') {
+                  <app-entry-summary [entry]="data.entry" />
+                }
+                @case ('group') {
+                  <span class="text-sm font-medium text-(--p-text-muted-color)">{{
+                    node.label
+                  }}</span>
+                }
+                @case ('field') {
+                  <span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 text-sm">
+                    @if (data.field.kind !== 'inflectionForm') {
+                      <span class="font-medium text-(--p-text-muted-color)"
+                        >{{ data.field.label }}:</span
+                      >
+                    }
+                    <span [cardHtml]="chip(data.field)" inline></span>
+                  </span>
+                }
+              }
+            </ng-template>
+          </p-tree>
+        </p-accordion-content>
+      </p-accordion-panel>
+    }
+  </p-accordion>
+} @else {
+  <p class="text-sm text-(--p-text-muted-color)">
+    Select at least one source to see its results here.
+  </p>
+}

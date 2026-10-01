@@ -1,3 +1,14 @@
-/* You can add global styles to this file, and also import other style files */
-
 @import 'tailwindcss';
+
+/* The card styles Anki uses, so the editor's preview renders exactly what Anki will show. */
+@import './app/card/card.css';
+
+/* A single card field shown inline in the app (e.g. in the results tree), outside a full card -
+   it should take on the surrounding text's size and flow rather than a card's own typography. */
+.pd-card.pd-card-inline {
+  display: inline;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}

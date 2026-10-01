@@ -1,17 +1,17 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-import { Layout } from './layout/layout';
+import { Component } from '@angular/core';
+import { mediaQuery } from './core/browser/media-query';
+import { Shell } from './shell/shell';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Layout],
-  template: `
-<!--    <h1>Hello, {{ title() }}</h1>-->
-    <app-layout />
-    <router-outlet />
-  `,
-  styles: [],
+  imports: [Shell],
+  template: `<app-shell />`,
+  host: {
+    // Card HTML (card.css) themes itself off Anki's `nightMode` class rather than the media query,
+    // so mirror the OS theme onto it - that's what makes the in-app card preview follow dark mode.
+    '[class.nightMode]': 'prefersDark()',
+  },
 })
 export class App {
-  protected readonly title = signal('Anki');
+  protected readonly prefersDark = mediaQuery('(prefers-color-scheme: dark)');
 }

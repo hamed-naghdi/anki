@@ -22,8 +22,11 @@ DWDS), card preview/generation.
 
 - **Backend**: ASP.NET Core 10 (C#, minimal APIs), [AngleSharp](https://anglesharp.github.io/) for
   HTML parsing, [Scalar](https://github.com/scalar/scalar) for API docs.
-- **Frontend**: Angular (planned, not started - `src/frontend/` is currently empty).
-- **Testing**: xUnit, with saved HTML fixtures per dictionary/word combination.
+- **Frontend**: Angular 22 (standalone, zoneless, signals, Signal Forms), PrimeNG 22,
+  Tailwind CSS 4. Talks to Anki directly through the [AnkiConnect](https://foosoft.net/projects/anki-connect/)
+  add-on.
+- **Testing**: xUnit, with saved HTML fixtures per dictionary/word combination (backend); Vitest
+  (frontend, `npm test`).
 
 ## Project structure
 
@@ -33,9 +36,8 @@ src/backend/
   Dictionary.Api/
     Program.cs                       endpoint definitions + DI wiring
     Models/                          shared, provider-agnostic types
-      IDictionaryEntry.cs            } interfaces every provider's entry/sense/example
-      ISense.cs                      } implements - kept intentionally minimal so no
-      IExample.cs                    } provider is forced to carry another's fields
+      IDictionaryEntry.cs            } interfaces every provider's entry/example implements -
+      IExample.cs                    } kept minimal so no provider carries another's fields
       Pronunciation.cs, TextSegment.cs, UsageLabel.cs   shared value types
       DictionarySourceResult.cs, DictionarySearchResult.cs   multi-dictionary response shape
       DictionaryLookupResult.cs      single-provider response shape (generic over entry type)
@@ -43,7 +45,7 @@ src/backend/
       IDictionaryProvider.cs         one provider's fetch+parse contract (generic over entry type)
       IDictionarySource.cs           non-generic adapter, used by the multi-dictionary endpoint
       HtmlExtractionHelpers.cs       AngleSharp helpers shared by every parser
-      DictionaryEntryJsonPolymorphism.cs   lets IDictionaryEntry serialize as its concrete type
+      DictionaryJsonPolymorphism.cs  lets IDictionaryEntry/IExample serialize as their concrete types
       Longman/                       Longman-specific provider, parser, and model types
       Oxford/                        Oxford-specific provider, parser, and model types
     Http/
@@ -51,8 +53,27 @@ src/backend/
   Dictionary.Api.Tests/
     Fixtures/                        saved HTML pages, one per dictionary/word combination tested
     Providers/                       LongmanHtmlParserTests.cs, OxfordHtmlParserTests.cs
-src/frontend/                        empty - Angular app not started yet
+src/frontend/src/app/
+  app.ts, app.config.ts, app.routes.ts   root component, providers, lazy-loaded routes
+  shell/                             sidebar + header around every page
+  core/
+    anki/                            AnkiConnect client, decks, and the app's notes/note types
+    dictionary/                      backend response models, languages/sources, lookup request
+    browser/                         small browser helpers (media queries, localStorage)
+  card/                              the Anki card itself, shared by the editor and Anki
+    card-field.ts                    what a card is made of (fields, groups) + data lookups
+    render-card.ts, card.css         the card's HTML and styling - also the editor's live preview
+    card-state.ts, note-type.ts      saved editor state; Anki note type definition
+  features/
+    decks/, cards/                   deck list with counts; card list
+    card-editor/                     search a word, pick fields, arrange both sides, save to Anki
+      card-editor.store.ts           the editor's state and actions (one instance per visit)
+      results-tree.ts, card-layout.ts   pure logic for the results tree and card layout (tested)
+      editor-toolbar/, results-panel/, layout-panel/   the editor's UI pieces
 ```
+
+In development, `ng serve` proxies `/api` to the backend on `localhost:5000` (`proxy.conf.json`).
+AnkiConnect must list the app's origin (e.g. `http://localhost:4200`) in its `webCorsOriginList`.
 
 ### Why per-provider models instead of one shared model
 

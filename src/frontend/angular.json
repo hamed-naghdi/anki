@@ -54,7 +54,7 @@
             "styles": [
               "src/styles.css",
               {
-                "input": "src/app/card-template/card.css",
+                "input": "src/app/card/card.css",
                 "bundleName": "pd-card",
                 "inject": false
               }
@@ -83,6 +83,9 @@
             }
           },
           "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
