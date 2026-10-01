@@ -29,7 +29,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
     options.SerializerOptions.TypeInfoResolver = new DefaultJsonTypeInfoResolver
     {
-        Modifiers = { DictionaryEntryJsonPolymorphism.Apply },
+        Modifiers = { DictionaryJsonPolymorphism.Apply },
     };
 });
 

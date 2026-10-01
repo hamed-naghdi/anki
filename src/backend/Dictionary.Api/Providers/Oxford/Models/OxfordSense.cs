@@ -2,7 +2,7 @@ using Dictionary.Api.Models;
 
 namespace Dictionary.Api.Providers.Oxford.Models;
 
-public sealed class OxfordSense : ISense
+public sealed class OxfordSense
 {
     public string? Definition { get; init; }
     public string? Grammar { get; init; }
@@ -25,7 +25,7 @@ public sealed class OxfordSense : ISense
     /// <summary>Whether this specific sense is flagged as an Oxford 3000/5000 keyword sense.</summary>
     public bool IsKeyword { get; init; }
 
-    public required IReadOnlyList<object> Examples { get; init; }
+    public required IReadOnlyList<IExample> Examples { get; init; }
 
     /// <summary>Subject-area tags Oxford attaches to this specific sense, e.g. "Health and Fitness" at CEFR "a1" for one sense of "walk".</summary>
     public required IReadOnlyList<OxfordSenseTopic> Topics { get; init; }
@@ -41,6 +41,4 @@ public sealed class OxfordSense : ISense
     /// is. Null for a non-phrasal sense.
     /// </summary>
     public string? PhrasalVerbPattern { get; init; }
-
-    // IReadOnlyList<IExample> ISense.Examples => Examples;
 }

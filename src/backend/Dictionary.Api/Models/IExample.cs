@@ -1,9 +1,9 @@
 namespace Dictionary.Api.Models;
 
-public interface IExample
-{
-    string SourceType { get; }
-    // IReadOnlyList<TextSegment> Segments { get; }
-    // string? AudioUrl { get; }
-    // string? Note { get; }
-}
+/// <summary>
+/// Marker for anything a sense lists as an example - a plain sentence, or a provider-specific
+/// group of sentences (e.g. Longman's collocation/grammar-pattern groups). Shapes differ too much
+/// per source to share members; JSON tells them apart by a "sourceType" discriminator instead (see
+/// <c>Providers.DictionaryJsonPolymorphism</c>).
+/// </summary>
+public interface IExample;

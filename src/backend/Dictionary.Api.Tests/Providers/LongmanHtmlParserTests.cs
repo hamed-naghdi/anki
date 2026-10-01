@@ -12,6 +12,17 @@ public class LongmanHtmlParserTests
     private static string Text(LongmanExample example) =>
         string.Concat(example.Segments.Select(s => s.Text));
 
+    // Every example sentence in a sense, whether it stands alone or sits inside a collocation/
+    // grammar-pattern group.
+    private static IEnumerable<LongmanExample> Sentences(IEnumerable<IExample> examples) =>
+        examples.SelectMany(example => example switch
+        {
+            LongmanExample single => new[] { single },
+            LongmanCollectionExample collocation => collocation.Examples,
+            LongmanGrammarExample grammar => grammar.Examples,
+            _ => throw new InvalidOperationException($"Unexpected example type {example.GetType().Name}"),
+        });
+
     [Fact]
     public void Parse_CrossOutFixture_ExtractsHeadwordAndPatternFromPhrasalVerbHead()
     {
@@ -71,10 +82,10 @@ public class LongmanHtmlParserTests
         var firstSense = entry.Senses[0];
         Assert.Contains("typical", firstSense.Definition);
 
-        var example = Assert.Single(firstSense.Examples);
+        var grammarExample = Assert.IsType<LongmanGrammarExample>(Assert.Single(firstSense.Examples));
+        Assert.Equal("example of", grammarExample.Pattern);
+        var example = Assert.Single(grammarExample.Examples);
         Assert.Equal("Can anyone give me an example of a transitive verb?", Text(example));
-        Assert.Equal("example of", example.Pattern);
-        Assert.Null(example.Note);
     }
 
     [Fact]
@@ -132,16 +143,19 @@ public class LongmanHtmlParserTests
             .SelectMany(sense => sense.Examples)
             .ToList();
 
-        var collocationExample = Assert.Single(
-            allExamples,
-            example => example.Note is not null && example.Note.StartsWith("Collocation: shopping expedition/trip"));
+        var collocation = Assert.Single(
+            allExamples.OfType<LongmanCollectionExample>(),
+            example => example.Collection == "shopping expedition/trip");
+        var collocationExample = Assert.Single(collocation.Examples);
         Assert.Contains("gone on", Text(collocationExample));
         Assert.Contains("shopping trip", Text(collocationExample));
-        Assert.Null(collocationExample.Pattern);
 
-        Assert.Contains(
-            allExamples,
-            example => example.Note is not null && example.Note.Contains("went shopping and bought a lot of things"));
+        // A gloss inside the sentence ("(=went shopping and bought a lot of things)") is left out of
+        // the sentence text itself.
+        var glossedExample = Assert.Single(
+            Sentences(allExamples),
+            example => Text(example).Contains("shopping spree"));
+        Assert.DoesNotContain("went shopping and bought", Text(glossedExample));
     }
 
     [Fact]
@@ -196,15 +210,16 @@ public class LongmanHtmlParserTests
 
         // "curiosity about" describes ONLY the "natural curiosity about the world" example,
         // not the whole sense - it must not leak onto unrelated examples in the same sense.
-        var patternedExample = Assert.Single(firstSense.Examples, example => example.Pattern is not null);
-        Assert.Equal("curiosity about", patternedExample.Pattern);
+        var grammarExample = Assert.Single(firstSense.Examples.OfType<LongmanGrammarExample>());
+        Assert.Equal("curiosity about", grammarExample.Pattern);
+        var patternedExample = Assert.Single(grammarExample.Examples);
         Assert.Contains("natural", Text(patternedExample));
         Assert.Contains("world", Text(patternedExample));
 
+        // A standalone example, not nested under any pattern.
         var arousedExample = Assert.Single(
-            firstSense.Examples,
+            firstSense.Examples.OfType<LongmanExample>(),
             example => Text(example) == "The news aroused a lot of curiosity among local people.");
-        Assert.Null(arousedExample.Pattern);
 
         Assert.Equal(
             [
@@ -319,9 +334,9 @@ public class LongmanHtmlParserTests
         var breakAway = Assert.Single(verbEntry.Idioms, i => i.Phrase == "break away");
         Assert.Equal("/dictionary/break-away", breakAway.Url);
 
-        // Longman only links to these - it never embeds their definition on this page.
+        // Longman only links to these - it never embeds their definition (LongmanIdiom has no
+        // senses at all) or a CEFR level on this page.
         IIdiom idiom = breakAway;
-        Assert.Empty(idiom.Senses);
         Assert.Null(idiom.CefrLevel);
 
         // A cross-referenced phrase must never be mistaken for a literal numbered sense.

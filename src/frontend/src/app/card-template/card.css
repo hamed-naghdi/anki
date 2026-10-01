@@ -15,7 +15,7 @@
 /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
    AnkiModelService reads it back from the note type's styling to decide when to re-push. */
 .pd-card {
-  --pd-style-version: 11;
+  --pd-style-version: 12;
 
   /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
      content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so this
@@ -464,11 +464,31 @@ button.pd-example-lead:hover {
   color: var(--p-text-muted-color);
 }
 
-.pd-example-pattern {
-  color: #93c5fd;
-  margin-right: 0.25rem;
+/* A collocation/grammar pattern - both as an example's inline "pattern:" lead-in and as the
+   heading of a Longman example group. blue-600 light / blue-300 dark, same as the preview. */
+.pd-example-pattern,
+.pd-example-phrase {
+  color: #2563eb;
   font-style: normal;
   font-weight: 600;
+}
+
+:where(.nightMode, .nightMode *) .pd-example-pattern,
+:where(.nightMode, .nightMode *) .pd-example-phrase {
+  color: #93c5fd;
+}
+
+.pd-example-pattern {
+  margin-right: 0.25rem;
+}
+
+.pd-example-heading {
+  font-size: 0.875rem;
+}
+
+/* An example placed in the same group as its collocation/grammar heading hangs under it. */
+.pd-example.pd-example-nested {
+  padding-left: 1.25rem;
 }
 
 .pd-example-text {

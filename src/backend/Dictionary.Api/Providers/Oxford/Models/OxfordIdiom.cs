@@ -13,5 +13,4 @@ public sealed class OxfordIdiom : IIdiom
     public string? CefrLevel { get; init; }
     public required IReadOnlyList<OxfordSense> Senses { get; init; }
 
-    IReadOnlyList<ISense> IIdiom.Senses => Senses;
 }

@@ -292,7 +292,7 @@ public static class LongmanHtmlParser
     /// <summary>
     /// A "COLLOCATIONS" box groups collocations under one or more grammar-pattern sections (e.g.
     /// "break + NOUN"), tied to one sense only by a free-text "Meaning N: ..." heading Longman
-    /// prints itself - kept as a display hint rather than matched back to a specific ISense, since
+    /// prints itself - kept as a display hint rather than matched back to a specific sense, since
     /// it's a paraphrase, not the sense's own definition text.
     /// </summary>
     private static List<LongmanCollocationGroup> ExtractCollocationGroups(IElement ldEntry)

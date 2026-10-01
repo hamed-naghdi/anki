@@ -14,5 +14,4 @@ public sealed class LongmanIdiom : IIdiom
     public string? Url { get; init; }
 
     string? IIdiom.CefrLevel => null;
-    IReadOnlyList<ISense> IIdiom.Senses => [];
 }

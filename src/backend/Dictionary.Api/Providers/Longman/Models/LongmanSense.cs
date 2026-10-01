@@ -2,14 +2,14 @@ using Dictionary.Api.Models;
 
 namespace Dictionary.Api.Providers.Longman.Models;
 
-public sealed class LongmanSense : ISense
+public sealed class LongmanSense
 {
     public string? Definition { get; init; }
     public string? Grammar { get; init; }
     public string? Register { get; init; }
     public required IReadOnlyList<string> Synonyms { get; init; }
     public required IReadOnlyList<string> Antonyms { get; init; }
-    public required IReadOnlyList<object> Examples { get; init; }
+    public required IReadOnlyList<IExample> Examples { get; init; }
 
     /// <summary>Longman's own sense number/letter, e.g. "1", "1a", "1b" - present so lettered sub-senses that share one guideword stay traceable to their parent number.</summary>
     public string? SenseLabel { get; init; }
@@ -35,6 +35,4 @@ public sealed class LongmanSense : ISense
 
     /// <summary>Illustration Longman prints at the top of this sense (e.g. "frying pan", "corkscrew") - null for the vast majority of senses, which have none.</summary>
     public string? ImageUrl { get; init; }
-
-    // IReadOnlyList<IExample> ISense.Examples => Examples;
 }

@@ -4,8 +4,6 @@ namespace Dictionary.Api.Providers.Oxford.Models;
 
 public sealed class OxfordExample : IExample
 {
-    public string SourceType => nameof(OxfordExample);
-    
     public required IReadOnlyList<TextSegment> Segments { get; init; }
     public string? AudioUrl { get; init; }
     public string? Note { get; init; }
