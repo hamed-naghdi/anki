@@ -1,8 +1,14 @@
-import type { PhoneticVariant } from '../core/dictionary/dictionary.models';
+import type {
+  Collocation,
+  PhoneticVariant,
+  TextSegment,
+} from '../core/dictionary/dictionary.models';
 import {
   STACKED_KINDS,
   americanPhonetic,
   britishPhonetic,
+  collocationExampleOf,
+  collocationOf,
   exampleGroupOf,
   exampleGroupPhrase,
   exampleOf,
@@ -103,6 +109,49 @@ function relation(words: readonly string[], modifier: 'syn' | 'ant', label: stri
   return `<span class="pd-relation"><span class="pd-badge pd-badge-${modifier}">${label}</span><span class="pd-text">${esc(words.join(', '))}</span></span>`;
 }
 
+// Longman's own layout: "book an appointment BrE, schedule an appointment AmE (=make an
+// appointment)", or "a doctor's appointment (also an appointment at the doctor's)".
+function collocationHeading(collocation: Collocation): string {
+  const geo = (text: string | null | undefined) => badge(text, 'geo');
+  const variants = (collocation.variants ?? [])
+    .map((variant) => {
+      const phrase = `<span class="pd-example-phrase">${esc(variant.phrase)}</span>${geo(variant.geo)}`;
+      return variant.linkWord
+        ? `<span class="pd-collocation-variant pd-collocation-variant-linked">(<span class="pd-collocation-linkword">${esc(variant.linkWord)}</span> ${phrase})</span>`
+        : `<span class="pd-collocation-variant">, ${phrase}</span>`;
+    })
+    .join('');
+  const gloss = collocation.gloss
+    ? `<span class="pd-example-note">(=${esc(collocation.gloss)})</span>`
+    : '';
+  return `<span class="pd-example-heading pd-collocation"><span class="pd-example-phrase">${esc(collocation.phrase)}</span>${geo(collocation.geo)}${variants}${gloss}</span>`;
+}
+
+// One example sentence: an audio button (or a bullet), an optional "pattern:" lead-in, the
+// sentence with its emphasized collocates, and an optional note.
+function exampleLine(
+  segments: readonly TextSegment[],
+  audioUrl: string | null | undefined,
+  prefix: string | null,
+  note: string | null | undefined,
+  indent: boolean,
+): string {
+  const lead = audioUrl
+    ? `<button type="button" class="pd-example-lead" title="Play example" onclick="${playAudio(audioUrl)}">${icon('volume-up', 'muted')}</button>`
+    : `<span class="pd-example-lead pd-example-bullet" aria-hidden="true">&bull;</span>`;
+  const pattern = prefix ? `<span class="pd-example-pattern">${esc(prefix)}:</span>` : '';
+  const text = segments
+    .map((segment) =>
+      segment.isEmphasized
+        ? `<span class="pd-example-emphasis">${esc(segment.text)}</span>`
+        : `<span>${esc(segment.text)}</span>`,
+    )
+    .join('');
+  const noteHtml = note ? `<span class="pd-example-note">${esc(note)}</span>` : '';
+  const indentClass = indent ? ' pd-example-nested' : '';
+  return `<span class="pd-example${indentClass}">${lead}<span class="pd-example-content"><span class="pd-example-text">${pattern}${text}</span>${noteHtml}</span></span>`;
+}
+
 export interface RenderFieldOptions {
   /** An example placed together with its collocation/grammar header: don't repeat the phrase. */
   readonly underHeader?: boolean;
@@ -198,21 +247,20 @@ export function renderField(field: CardField, options: RenderFieldOptions = {}):
       const example = exampleOf(field);
       if (!example) return '';
       const { underHeader = false, indent = underHeader } = options;
-      const lead = example.audioUrl
-        ? `<button type="button" class="pd-example-lead" title="Play example" onclick="${playAudio(example.audioUrl)}">${icon('volume-up', 'muted')}</button>`
-        : `<span class="pd-example-lead pd-example-bullet" aria-hidden="true">&bull;</span>`;
       const prefix = examplePrefix(field, underHeader);
-      const pattern = prefix ? `<span class="pd-example-pattern">${esc(prefix)}:</span>` : '';
-      const text = example.segments
-        .map((segment) =>
-          segment.isEmphasized
-            ? `<span class="pd-example-emphasis">${esc(segment.text)}</span>`
-            : `<span>${esc(segment.text)}</span>`,
-        )
-        .join('');
-      const note = example.note ? `<span class="pd-example-note">${esc(example.note)}</span>` : '';
-      const indentClass = indent ? ' pd-example-nested' : '';
-      return `<span class="pd-example${indentClass}">${lead}<span class="pd-example-content"><span class="pd-example-text">${pattern}${text}</span>${note}</span></span>`;
+      return exampleLine(example.segments, example.audioUrl, prefix, example.note, indent);
+    }
+    case 'collocation': {
+      const collocation = collocationOf(field);
+      return collocation ? collocationHeading(collocation) : '';
+    }
+    case 'collocationExample': {
+      const sentence = collocationExampleOf(field);
+      if (sentence === null) return '';
+      const { underHeader = false, indent = underHeader } = options;
+      // Away from its own collocation, the sentence keeps that phrase as its lead-in.
+      const prefix = underHeader ? null : (collocationOf(field)?.phrase ?? null);
+      return exampleLine([{ text: sentence }], null, prefix, null, indent);
     }
   }
 }

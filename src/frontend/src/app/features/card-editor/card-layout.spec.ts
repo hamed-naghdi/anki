@@ -96,7 +96,7 @@ describe('card layout', () => {
 
   it('labels groups by their most telling field', () => {
     expect(base.map((group, index) => groupLabel(group, index))).toEqual([
-      'make (verb)',
+      'make¹ (verb)',
       'Longman:Inflection forms',
       'Longman:1. to produce something',
     ]);

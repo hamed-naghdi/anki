@@ -2,7 +2,7 @@ import { Component, computed, inject, input } from '@angular/core';
 import { GripVertical } from '@primeicons/angular/grip-vertical';
 import { Plus } from '@primeicons/angular/plus';
 import { Times } from '@primeicons/angular/times';
-import type { TreeNode } from 'primeng/api';
+import { TreeDragDropService, type TreeNode } from 'primeng/api';
 import { ButtonDirective } from 'primeng/button';
 import { Textarea } from 'primeng/textarea';
 import { Tree } from 'primeng/tree';
@@ -27,6 +27,18 @@ import { CardEditorStore, type CardSide } from '../card-editor.store';
   selector: 'app-layout-panel',
   imports: [Tree, ButtonDirective, Textarea, CardHtml, GripVertical, Plus, Times],
   templateUrl: './layout-panel.html',
+  // p-tree's draggableNodes/droppableNodes silently do nothing without a TreeDragDropService in
+  // scope - PrimeNG injects it as optional, but drag-and-drop can't work without it.
+  providers: [TreeDragDropService],
+  // PrimeNG's .p-tree-node-label keeps its flex-item default (flex: 0 1 auto), so a node template's
+  // w-full only fills that shrink-wrapped box, not the row - which squeezes the rich-text
+  // textareas. It's rendered by p-tree's own template, so it's only reachable via ::ng-deep.
+  styles: `
+    :host ::ng-deep .p-tree-node-label {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  `,
   host: {
     class:
       'flex flex-col gap-4 border-t border-surface-200 p-4 xl:w-2/5 xl:border-t-0 xl:border-l dark:border-surface-700',

@@ -1,4 +1,4 @@
-import { makeSearch } from '../../../testing/dictionary-fixtures';
+import { makeEntry, makeSearch } from '../../../testing/dictionary-fixtures';
 import {
   buildResultTrees,
   checkedFieldKeys,
@@ -50,6 +50,13 @@ describe('results tree', () => {
       'Longman-0-sense-1',
       'Longman-0-sense-1-senseDefinition',
       'Longman-0-sense-1-senseSynonyms',
+      'Longman-0-collocations',
+      'Longman-0-collocations-0-0',
+      'Longman-0-collocation-0-0-0-group',
+      'Longman-0-collocation-0-0-0',
+      'Longman-0-collocation-0-0-0-example-0',
+      'Longman-0-collocation-0-0-0-example-1',
+      'Longman-0-collocation-0-0-1',
     ]);
   });
 
@@ -66,6 +73,37 @@ describe('results tree', () => {
       'Example 3',
       'Example 4',
     ]);
+  });
+
+  it('groups collocations by section, each phrase with its own examples', () => {
+    const collocations = longman[0].children!.at(-1)!;
+    expect(collocations.label).toBe('Collocations');
+    const verbs = collocations.children![0];
+    expect(verbs.label).toBe('verbs');
+    expect(verbs.children!.map((node) => node.label)).toEqual([
+      'book an appointment',
+      'Collocation',
+    ]);
+    expect(verbs.children![0].children!.map((node) => node.label)).toEqual([
+      'Collocation',
+      'Example 1',
+      'Example 2',
+    ]);
+  });
+
+  // Same-spelled homographs (Oxford "tear¹ verb" vs. "tear² verb") must stay distinguishable.
+  it('labels an entry with its homograph number', () => {
+    expect(longman[0].label).toBe('make¹ (verb)');
+    const tear2 = buildResultTrees({
+      word: 'tear',
+      results: [
+        {
+          source: 'Oxford',
+          entries: [{ ...makeEntry, headword: 'tear', homographNumber: '12', partOfSpeech: 'noun' }],
+        },
+      ],
+    }).get('Oxford')!;
+    expect(tear2[0].label).toBe('tear¹² (noun)');
   });
 
   it('collects every selectable field leaf', () => {

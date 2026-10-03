@@ -87,6 +87,38 @@ export interface DictionarySense {
   phrasalVerbPattern?: string | null;
 }
 
+/** An alternative wording of a phrase, e.g. "schedule an appointment" (American English) for "book an appointment". */
+export interface PhraseVariant {
+  phrase: string;
+  /** Where this wording is used, e.g. "American English". */
+  geo?: string | null;
+  /** The word linking it to the main phrase, e.g. "also". */
+  linkWord?: string | null;
+}
+
+/** One phrase commonly used with the headword, e.g. "book an appointment". */
+export interface Collocation {
+  phrase: string;
+  /** Where the main phrase is used, e.g. "British English". */
+  geo?: string | null;
+  variants?: PhraseVariant[];
+  /** Short gloss on the phrase itself, e.g. "make an appointment" for "book an appointment". */
+  gloss?: string | null;
+  examples?: string[];
+}
+
+/** One grammatical grouping inside a collocations box, e.g. "verbs" or "ADJECTIVES/NOUN + appointment". */
+export interface CollocationSection {
+  heading: string;
+  collocations: Collocation[];
+}
+
+/** One Longman "COLLOCATIONS" box, optionally tied to a sense by its own "Meaning N: ..." heading. */
+export interface CollocationGroup {
+  meaningHint?: string | null;
+  sections: CollocationSection[];
+}
+
 /** A short vocabulary badge with a human-readable explanation, e.g. Longman's frequency dots ("●●○") or S1/W1 top-1000-word markers. */
 export interface UsageLabel {
   code: string;
@@ -94,7 +126,7 @@ export interface UsageLabel {
 }
 
 /**
- * Common shape every provider's entry serializes to. `homographNumber`/`frequencyLabels` (Longman)
+ * Common shape every provider's entry serializes to. `frequencyLabels` (Longman)
  * and `isKeyword`/`keywordLevel` (Oxford) are provider-only extras the backend happens to still
  * send on this shared shape (other providers just omit them), kept here rather than on separate
  * per-provider types since the tree node template renders sources generically and reads them
@@ -109,6 +141,7 @@ export interface DictionaryEntry {
   pronunciations: Pronunciation[];
   inflectionForms: InflectionForm[];
   senses: DictionarySense[];
+  /** Superscript number telling same-spelled headwords apart (both providers, e.g. the "2" in "tear²"); absent when the word has only one entry. */
   homographNumber?: string | null;
   /** Syllable-divided spelling (Longman, e.g. "cu‧ri‧os‧i‧ty"), or a phrasal verb's object-placement pattern in that same slot (both providers, e.g. "cross something ↔ out/through"). */
   hyphenation?: string | null;
@@ -117,6 +150,8 @@ export interface DictionaryEntry {
   isKeyword?: boolean;
   /** CEFR level associated with the keyword-list membership above (e.g. "a1", "c1"). */
   keywordLevel?: string | null;
+  /** Longman's "COLLOCATIONS" boxes for this entry. */
+  collocationGroups?: CollocationGroup[];
 }
 
 export interface DictionarySourceResult {

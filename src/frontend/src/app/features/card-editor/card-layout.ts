@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import type { TreeNode } from 'primeng/api';
 import {
+  entryTitle,
   senseOf,
   sourcePath,
   type CardLayout,
@@ -39,7 +40,8 @@ export function placedOriginalKeys(layout: CardLayout): Set<string> {
  * no longer checked is removed; copies and rich-text blocks aren't tied to a checkbox and stay put.
  * A newly checked field is appended to its default group: its sense's group for sense-scoped
  * fields, its source's shared inflections group for inflection forms (so homographs from one
- * dictionary share it, but different dictionaries never do), else its entry's group.
+ * dictionary share it, but different dictionaries never do), its entry's collocations group for
+ * collocations, else its entry's group.
  */
 export function reconcile(
   layout: CardLayout,
@@ -185,8 +187,7 @@ export function groupLabel(group: LayoutGroup, index: number): string {
 
   const headword = fields.find((field) => field.kind === 'headword');
   if (headword?.kind === 'headword') {
-    const { headword: word, partOfSpeech } = headword.entry;
-    return partOfSpeech ? `${word} (${partOfSpeech})` : word;
+    return entryTitle(headword.entry);
   }
 
   const inflection = fields.find((field) => field.kind === 'inflectionForm');
@@ -199,6 +200,13 @@ export function groupLabel(group: LayoutGroup, index: number): string {
       const sense = senseOf(field);
       return sourcePath(field, sense ? senseLabel(sense, field.senseIndex) : 'Sense');
     }
+  }
+
+  const collocation = fields.find(
+    (field) => field.kind === 'collocation' || field.kind === 'collocationExample',
+  );
+  if (collocation && collocation.kind !== 'richText') {
+    return sourcePath(collocation, 'Collocations');
   }
 
   return fields.some((field) => field.kind === 'richText') ? 'Custom text' : `Group ${index + 1}`;
@@ -327,5 +335,6 @@ function ownerGroup(layout: CardLayout, instanceKey: string): LayoutGroup | unde
 function defaultGroupKey(field: EntryField): string {
   if (field.kind === 'inflectionForm') return `group-inflections-${field.sourceLabel}`;
   if (field.senseIndex !== undefined) return `group-sense-${field.entryKey}-${field.senseIndex}`;
+  if (field.collocationIndex !== undefined) return `group-collocations-${field.entryKey}`;
   return `group-${field.entryKey}`;
 }

@@ -15,7 +15,7 @@
 /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
    AnkiNotes reads it back from the note type's styling to decide when to re-push. */
 .pd-card {
-  --pd-style-version: 12;
+  --pd-style-version: 13;
 
   /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
      content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so this
@@ -270,6 +270,18 @@
   color: #0f172a;
 }
 
+/* British/American English on a collocation or its variant - teal-700 light / teal-300 dark. */
+.pd-badge-geo {
+  border: 1px solid rgba(15, 118, 110, 0.4);
+  letter-spacing: 0.025em;
+  color: #0f766e;
+}
+
+:where(.nightMode, .nightMode *) .pd-badge-geo {
+  border-color: rgba(94, 234, 212, 0.4);
+  color: #5eead4;
+}
+
 .pd-badge-group {
   display: inline-flex;
   align-items: center;
@@ -484,6 +496,23 @@ button.pd-example-lead:hover {
 
 .pd-example-heading {
   font-size: 0.875rem;
+}
+
+.pd-collocation .pd-badge-geo {
+  margin-left: 0.375rem;
+  vertical-align: 0.1em;
+}
+
+.pd-collocation-variant {
+  color: var(--p-text-muted-color);
+}
+
+.pd-collocation-variant.pd-collocation-variant-linked {
+  margin-left: 0.375rem;
+}
+
+.pd-collocation-linkword {
+  font-style: italic;
 }
 
 /* An example placed in the same group as its collocation/grammar heading hangs under it. */

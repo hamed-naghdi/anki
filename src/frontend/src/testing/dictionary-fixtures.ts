@@ -47,6 +47,29 @@ export const makeEntry: DictionaryEntry = {
     },
     { definition: 'to cause', synonyms: ['cause'], antonyms: [], examples: [] },
   ],
+  collocationGroups: [
+    {
+      sections: [
+        {
+          heading: 'verbs',
+          collocations: [
+            {
+              phrase: 'book an appointment',
+              geo: 'British English',
+              variants: [{ phrase: 'schedule an appointment', geo: 'American English' }],
+              gloss: 'make an appointment',
+              examples: ['Have you booked another appointment?', 'I’ve scheduled it for 9.30.'],
+            },
+            {
+              phrase: 'a doctor’s appointment',
+              variants: [{ phrase: 'an appointment at the doctor’s', linkWord: 'also' }],
+              examples: [],
+            },
+          ],
+        },
+      ],
+    },
+  ],
 };
 
 export const makeSearch: DictionarySearchResult = {

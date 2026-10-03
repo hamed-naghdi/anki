@@ -7,6 +7,9 @@ public sealed class OxfordDictionaryEntry : IDictionaryEntry
     public required string Headword { get; init; }
 
     public string? PartOfSpeech { get; init; }
+
+    /// <summary>Oxford's superscript homograph number (e.g. the "2" in "tear²" - the one from your eye), distinguishing this entry from same-spelled headwords. Null when the word has only one.</summary>
+    public string? HomographNumber { get; init; }
     public string? Grammar { get; init; }
     public required IReadOnlyList<Pronunciation> Pronunciations { get; init; }
     public required IReadOnlyList<InflectionForm> InflectionForms { get; init; }

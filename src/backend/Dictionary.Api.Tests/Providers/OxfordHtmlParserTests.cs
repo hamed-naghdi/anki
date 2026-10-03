@@ -318,4 +318,49 @@ public class OxfordHtmlParserTests
         var url = Assert.Single(urls);
         Assert.Equal("https://www.oxfordlearnersdictionaries.com/definition/english/walk_2", url);
     }
+
+    [Fact]
+    public void Parse_TearFixture_SplitsHomographNumberOutOfHeadword()
+    {
+        var html = LoadFixture("oxford-tear.html");
+
+        var entry = Assert.Single(OxfordHtmlParser.Parse("tear", html).Entries);
+
+        Assert.Equal("tear", entry.Headword);
+        Assert.Equal("1", entry.HomographNumber);
+        Assert.Equal("verb", entry.PartOfSpeech);
+    }
+
+    [Fact]
+    public void Parse_WalkFixture_HasNoHomographNumberWhenOxfordPrintsNone()
+    {
+        var entry = OxfordHtmlParser.Parse("walk", LoadFixture("oxford-walk.html")).Entries[0];
+
+        Assert.Equal("walk", entry.Headword);
+        Assert.Null(entry.HomographNumber);
+    }
+
+    // "tear¹" and "tear²" are both homographs of "tear" - the number must not stop them matching.
+    [Fact]
+    public void FindOtherHomographUrls_TearFixture_FindsHomographsWithADifferentNumber()
+    {
+        var urls = OxfordHtmlParser.FindOtherHomographUrls(LoadFixture("oxford-tear.html"));
+
+        Assert.Equal(
+            [
+                "https://www.oxfordlearnersdictionaries.com/definition/english/tear1_2",
+                "https://www.oxfordlearnersdictionaries.com/definition/english/tear2_1",
+            ],
+            urls);
+    }
+
+    // tear¹ verb's own list stops at tear² verb - tear² noun only shows up on tear² verb's page.
+    [Fact]
+    public void FindOtherHomographUrls_Tear2VerbFixture_ListsTheHomographTheFirstPageCouldNotSee()
+    {
+        var html = LoadFixture("oxford-tear2-verb.html");
+
+        Assert.Contains("https://www.oxfordlearnersdictionaries.com/definition/english/tear2_2", OxfordHtmlParser.FindOtherHomographUrls(html));
+        Assert.Equal("https://www.oxfordlearnersdictionaries.com/definition/english/tear2_1", OxfordHtmlParser.FindOwnPageUrl(html));
+    }
 }

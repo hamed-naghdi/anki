@@ -1,6 +1,7 @@
 import type { WritableSignal } from '@angular/core';
 import {
   isExampleGroup,
+  type Collocation,
   type DictionaryEntry,
   type ExampleGroup,
   type PhoneticVariant,
@@ -17,6 +18,8 @@ import {
 // wives"), and the `sense*` kinds / `example` are scoped to one sense (and one example).
 // `exampleHeader` is the bold phrase of a Longman collocation/grammar-pattern example group (e.g.
 // "make somebody something"), selectable apart from the examples nested under it.
+// `collocation` is one phrase from an entry's COLLOCATIONS box (with its region, variants and
+// gloss), and `collocationExample` one of the sentences listed under it.
 export type EntryFieldKind =
   | 'headword'
   | 'partOfSpeech'
@@ -38,7 +41,9 @@ export type EntryFieldKind =
   | 'senseSynonyms'
   | 'senseAntonyms'
   | 'exampleHeader'
-  | 'example';
+  | 'example'
+  | 'collocation'
+  | 'collocationExample';
 
 export interface EntryField {
   readonly kind: EntryFieldKind;
@@ -58,6 +63,12 @@ export interface EntryField {
   readonly exampleIndex?: number;
   /** An 'example' nested in a collocation/grammar group: which of that group's examples. */
   readonly subExampleIndex?: number;
+  /** 'collocation' / 'collocationExample': which of entry.collocationGroups, which of its sections, which collocation in it. */
+  readonly collocationGroupIndex?: number;
+  readonly collocationSectionIndex?: number;
+  readonly collocationIndex?: number;
+  /** 'collocationExample': which of the collocation's examples. */
+  readonly collocationExampleIndex?: number;
 }
 
 export type TextDirection = 'ltr' | 'rtl';
@@ -100,6 +111,8 @@ export const STACKED_KINDS: ReadonlySet<CardField['kind']> = new Set<CardField['
   'inflectionForm',
   'exampleHeader',
   'example',
+  'collocation',
+  'collocationExample',
   'richText',
   'senseImage',
 ]);
@@ -134,11 +147,35 @@ export function exampleOf(field: EntryField): SimpleExample | null {
     : (example.examples?.[field.subExampleIndex] ?? null);
 }
 
+/** The collocation a 'collocation' or 'collocationExample' points at. */
+export function collocationOf(field: EntryField): Collocation | null {
+  const { collocationGroupIndex: g, collocationSectionIndex: s, collocationIndex: c } = field;
+  if (g === undefined || s === undefined || c === undefined) return null;
+  return field.entry.collocationGroups?.[g]?.sections[s]?.collocations[c] ?? null;
+}
+
+/** The sentence a 'collocationExample' points at. */
+export function collocationExampleOf(field: EntryField): string | null {
+  return field.collocationExampleIndex === undefined
+    ? null
+    : (collocationOf(field)?.examples?.[field.collocationExampleIndex] ?? null);
+}
+
 /**
  * Whether `field` is a nested example whose own group header is also in `fields` (one card
  * group) - it then renders indented under that header instead of repeating the phrase itself.
  */
 export function isNestedExample(fields: readonly CardField[], field: CardField): boolean {
+  if (field.kind === 'collocationExample') {
+    return fields.some(
+      (other) =>
+        other.kind === 'collocation' &&
+        other.entryKey === field.entryKey &&
+        other.collocationGroupIndex === field.collocationGroupIndex &&
+        other.collocationSectionIndex === field.collocationSectionIndex &&
+        other.collocationIndex === field.collocationIndex,
+    );
+  }
   if (field.kind !== 'example' || field.subExampleIndex === undefined) return false;
   return fields.some(
     (other) =>
@@ -165,6 +202,18 @@ export function examplePrefix(field: EntryField, underHeader: boolean): string |
 /** The bold phrase a group of examples hangs off - its collocation or its grammar pattern. */
 export function exampleGroupPhrase(group: ExampleGroup): string {
   return group.sourceType === 'LongmanCollectionExample' ? group.collection : group.pattern;
+}
+
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+/**
+ * An entry as one line of plain text, e.g. "tear² (noun)" - the homograph number keeps same-spelled
+ * entries (tear¹ "rip" vs. tear² "from your eye") apart wherever only text can be shown.
+ */
+export function entryTitle(entry: DictionaryEntry): string {
+  const number = (entry.homographNumber ?? '').replace(/\d/g, (d) => SUPERSCRIPT_DIGITS[+d]);
+  const word = `${entry.headword}${number}`;
+  return entry.partOfSpeech ? `${word} (${entry.partOfSpeech})` : word;
 }
 
 /**
@@ -266,6 +315,10 @@ export function fieldText(field: CardField): string {
     }
     case 'example':
       return (exampleOf(field)?.segments ?? []).map((segment) => segment.text).join('');
+    case 'collocation':
+      return collocationOf(field)?.phrase ?? '';
+    case 'collocationExample':
+      return collocationExampleOf(field) ?? '';
   }
 }
 

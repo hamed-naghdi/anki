@@ -2,12 +2,14 @@ import type { TreeNode } from 'primeng/api';
 import {
   americanPhonetic,
   britishPhonetic,
+  entryTitle,
   exampleGroupPhrase,
   type EntryField,
   type EntryFieldKind,
 } from '../../card/card-field';
 import {
   isExampleGroup,
+  type CollocationGroup,
   type DictionaryEntry,
   type DictionaryExample,
   type DictionarySearchResult,
@@ -16,7 +18,8 @@ import {
 
 /**
  * The search results as checkbox trees, one per dictionary source: entry → organizational groups
- * (Head, Inflection forms, Senses → each sense → Examples) → one leaf per selectable field. Checking
+ * (Head, Inflection forms, Senses → each sense → Examples, Collocations → each section → each
+ * collocation) → one leaf per selectable field. Checking
  * any node checks everything under it (PrimeNG's own propagation), which is how a whole entry,
  * sense, or example group gets placed in one click.
  *
@@ -147,7 +150,17 @@ function entryNode(
   entryOrdinal: number,
   entryCount: number,
 ): ResultNode {
-  type Indices = Pick<EntryField, 'formIndex' | 'senseIndex' | 'exampleIndex' | 'subExampleIndex'>;
+  type Indices = Pick<
+    EntryField,
+    | 'formIndex'
+    | 'senseIndex'
+    | 'exampleIndex'
+    | 'subExampleIndex'
+    | 'collocationGroupIndex'
+    | 'collocationSectionIndex'
+    | 'collocationIndex'
+    | 'collocationExampleIndex'
+  >;
 
   const field = (kind: EntryFieldKind, label: string, indices: Indices = {}): ResultNode => ({
     key: fieldKey(entryKey, kind, indices),
@@ -163,8 +176,8 @@ function entryNode(
   const head: ResultNode[] = [];
   if (entry.isKeyword || entry.keywordLevel) head.push(field('keyword', 'Keyword & level'));
   head.push(field('headword', 'Headword'));
-  if (entry.hyphenation) head.push(field('hyphenation', 'Hyphenation'));
   if (entry.homographNumber) head.push(field('homographNumber', 'Homograph number'));
+  if (entry.hyphenation) head.push(field('hyphenation', 'Hyphenation'));
   if (entry.partOfSpeech) head.push(field('partOfSpeech', 'Part of speech'));
   if (entry.grammar) head.push(field('grammar', 'Grammar'));
   if (britishPhonetic(entry)) head.push(field('pronunciation-british', 'Pronunciation (UK)'));
@@ -219,8 +232,12 @@ function entryNode(
     children.push(groupNode(`${entryKey}-senses`, 'Senses', senses));
   }
 
-  const label = entry.partOfSpeech ? `${entry.headword} (${entry.partOfSpeech})` : entry.headword;
-  return { key: entryKey, label, data: { type: 'entry', entry }, children };
+  const collocations = collocationNodes(entry.collocationGroups ?? [], entryKey, field);
+  if (collocations.length) {
+    children.push(groupNode(`${entryKey}-collocations`, 'Collocations', collocations));
+  }
+
+  return { key: entryKey, label: entryTitle(entry), data: { type: 'entry', entry }, children };
 }
 
 // A plain example is one leaf. A Longman collocation/grammar group becomes its own sub-group - the
@@ -252,11 +269,69 @@ function exampleNodes(
   });
 }
 
+// Collocations box → section ("verbs") → collocation. A collocation with examples becomes its own
+// sub-group - the phrase as a `collocation` leaf, then one leaf per example - the same shape as a
+// Longman collocation/grammar example group. Most entries have a single box, so its sections sit
+// directly under "Collocations"; only several boxes get a level of their own.
+function collocationNodes(
+  groups: readonly CollocationGroup[],
+  entryKey: string,
+  field: (kind: EntryFieldKind, label: string, indices: Partial<EntryField>) => ResultNode,
+): ResultNode[] {
+  const boxes = groups.map((group, collocationGroupIndex) => {
+    const sections = group.sections.map((section, collocationSectionIndex) => {
+      const items = section.collocations.map((collocation, collocationIndex) => {
+        const at = { collocationGroupIndex, collocationSectionIndex, collocationIndex };
+        const header = field('collocation', 'Collocation', at);
+        const examples = (collocation.examples ?? []).map((_, collocationExampleIndex) =>
+          field('collocationExample', `Example ${collocationExampleIndex + 1}`, {
+            ...at,
+            collocationExampleIndex,
+          }),
+        );
+        return examples.length
+          ? groupNode(`${header.key}-group`, collocation.phrase, [header, ...examples])
+          : header;
+      });
+      return groupNode(
+        `${entryKey}-collocations-${collocationGroupIndex}-${collocationSectionIndex}`,
+        section.heading,
+        items,
+      );
+    });
+    return { group, sections, collocationGroupIndex };
+  });
+
+  if (boxes.length === 1) {
+    return boxes[0].sections;
+  }
+  return boxes.map(({ group, sections, collocationGroupIndex }) =>
+    groupNode(
+      `${entryKey}-collocations-${collocationGroupIndex}`,
+      group.meaningHint ?? `Box ${collocationGroupIndex + 1}`,
+      sections,
+    ),
+  );
+}
+
 function fieldKey(
   entryKey: string,
   kind: EntryFieldKind,
-  { formIndex, senseIndex, exampleIndex, subExampleIndex }: Partial<EntryField>,
+  {
+    formIndex,
+    senseIndex,
+    exampleIndex,
+    subExampleIndex,
+    collocationGroupIndex,
+    collocationSectionIndex,
+    collocationIndex,
+    collocationExampleIndex,
+  }: Partial<EntryField>,
 ): string {
+  if (collocationIndex !== undefined) {
+    const base = `${entryKey}-collocation-${collocationGroupIndex}-${collocationSectionIndex}-${collocationIndex}`;
+    return collocationExampleIndex !== undefined ? `${base}-example-${collocationExampleIndex}` : base;
+  }
   if (exampleIndex !== undefined) {
     // A plain example keeps the "-example-N" key it had before example groups existed.
     const suffix =

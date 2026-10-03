@@ -7,6 +7,12 @@ public sealed class LongmanSense
     public string? Definition { get; init; }
     public string? Grammar { get; init; }
     public string? Register { get; init; }
+
+    /// <summary>Where this sense is used, e.g. "British English" for "shopping" sense 3. Null when it isn't regional.</summary>
+    public string? Geo { get; init; }
+
+    /// <summary>Alternative wordings with this same meaning, e.g. "commercial break" (also) for "break" sense 2.</summary>
+    public IReadOnlyList<PhraseVariant> Variants { get; init; } = [];
     public required IReadOnlyList<string> Synonyms { get; init; }
     public required IReadOnlyList<string> Antonyms { get; init; }
     public required IReadOnlyList<IExample> Examples { get; init; }

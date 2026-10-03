@@ -87,12 +87,13 @@ public static class LongmanHtmlParser
             var signpost = DirectChildText(senseElement, "SIGNPOST");
             var field = DirectChildText(senseElement, "FIELD");
             var phrasalVerbPattern = DirectChildText(senseElement, "LEXUNIT");
+            var geo = DirectChildText(senseElement, "GEO");
 
             var subsenses = senseElement.Children.Where(child => child.ClassList.Contains("Subsense")).ToList();
 
             if (subsenses.Count == 0)
             {
-                var sense = BuildSense(senseElement, senseNumber, guideword, signpost, field, phrasalVerbPattern);
+                var sense = BuildSense(senseElement, senseNumber, guideword, signpost, field, phrasalVerbPattern, geo);
                 if (sense is not null)
                 {
                     yield return sense;
@@ -107,8 +108,9 @@ public static class LongmanHtmlParser
                 var label = senseNumber is null ? letter : $"{senseNumber}{letter}";
                 var subField = DirectChildText(subsense, "FIELD") ?? field;
                 var subPhrasalVerbPattern = DirectChildText(subsense, "LEXUNIT") ?? phrasalVerbPattern;
+                var subGeo = DirectChildText(subsense, "GEO") ?? geo;
 
-                var sense = BuildSense(subsense, label, guideword, signpost, subField, subPhrasalVerbPattern);
+                var sense = BuildSense(subsense, label, guideword, signpost, subField, subPhrasalVerbPattern, subGeo);
                 if (sense is not null)
                 {
                     yield return sense;
@@ -118,13 +120,15 @@ public static class LongmanHtmlParser
     }
 
     private static LongmanSense? BuildSense(
-        IElement scope, string? senseLabel, string? guideword, string? signpost, string? field, string? phrasalVerbPattern)
+        IElement scope, string? senseLabel, string? guideword, string? signpost, string? field, string? phrasalVerbPattern, string? geo)
     {
         var sense = new LongmanSense
         {
             Definition = ExtractText(scope, ".DEF"),
             Grammar = ExtractGrammar(scope),
             Register = ExtractText(scope, ".REGISTERLAB"),
+            Geo = geo,
+            Variants = ExtractVariants(scope),
             Synonyms = ExtractSynOrOpp(scope, ".SYN"),
             Antonyms = ExtractSynOrOpp(scope, ".OPP"),
             Examples = ExtractExamples(scope),
@@ -330,8 +334,10 @@ public static class LongmanHtmlParser
                     collocations.Add(new Collocation
                     {
                         Phrase = phrase,
+                        Geo = DirectChildText(collocate, "GEO"),
+                        Variants = ExtractVariants(collocate),
                         Gloss = NullIfEmpty(gloss),
-                        Example = ExtractText(collocate, ".EXAMPLE"),
+                        Examples = DirectChildTexts(collocate, "EXAMPLE"),
                     });
                 }
 
@@ -359,11 +365,9 @@ public static class LongmanHtmlParser
         {
             foreach (var section in thesBox.Children.Where(c => c.ClassList.Contains("Section")))
             {
+                // Most boxes are a single unheaded section (e.g. "put", "true") - only boxes split by
+                // shade of meaning (e.g. "break") print a .SECHEADING per section.
                 var heading = ExtractText(section, ".SECHEADING");
-                if (heading is null)
-                {
-                    continue;
-                }
 
                 var entries = new List<ThesaurusEntry>();
 
@@ -375,19 +379,15 @@ public static class LongmanHtmlParser
                         continue;
                     }
 
-                    var examples = exponent.Children
-                        .Where(c => c.ClassList.Contains("EXAMPLE"))
-                        .Select(e => e.TextContent.Trim())
-                        .Where(t => t.Length > 0)
-                        .ToList();
-
                     entries.Add(new ThesaurusEntry
                     {
                         Word = word,
+                        Geo = DirectChildText(exponent, "GEO"),
+                        Variants = ExtractVariants(exponent),
                         PartOfSpeech = ExtractText(exponent, ".POS"),
                         Grammar = ExtractGrammar(exponent),
                         Definition = ExtractText(exponent, ".DEF"),
-                        Examples = examples,
+                        Examples = DirectChildTexts(exponent, "EXAMPLE"),
                     });
                 }
 
@@ -403,6 +403,43 @@ public static class LongmanHtmlParser
 
     private static string? DirectChildText(IElement scope, string className) =>
         NullIfEmpty(scope.Children.FirstOrDefault(c => c.ClassList.Contains(className))?.TextContent.Trim());
+
+    private static List<string> DirectChildTexts(IElement scope, string className) =>
+        scope.Children
+            .Where(c => c.ClassList.Contains(className))
+            .Select(c => c.TextContent.Trim())
+            .Where(t => t.Length > 0)
+            .ToList();
+
+    /// <summary>
+    /// Alternative wordings Longman prints right after a phrase/word as .Variant siblings, each
+    /// with its own .LEXVAR, an optional .LINKWORD ("also") and an optional .GEO - e.g. "book an
+    /// appointment British English, schedule an appointment American English", or "a doctor's
+    /// appointment (also an appointment at the doctor's)". Only direct children are read, so the
+    /// .GEO belonging to the main phrase itself (a sibling of .Variant) never leaks in here.
+    /// </summary>
+    private static List<PhraseVariant> ExtractVariants(IElement scope)
+    {
+        var variants = new List<PhraseVariant>();
+
+        foreach (var variant in scope.Children.Where(c => c.ClassList.Contains("Variant")))
+        {
+            var phrase = DirectChildText(variant, "LEXVAR");
+            if (phrase is null)
+            {
+                continue;
+            }
+
+            variants.Add(new PhraseVariant
+            {
+                Phrase = phrase,
+                Geo = DirectChildText(variant, "GEO"),
+                LinkWord = DirectChildText(variant, "LINKWORD"),
+            });
+        }
+
+        return variants;
+    }
 
     /// <summary>Longman bolds the headword itself right before a definition (e.g. subsense "BREAK") as a purely visual re-introduction, not a meaningful guideword - only a value that differs from the headword is one.</summary>
     private static string? NullIfHeadword(string? value, string headword) =>

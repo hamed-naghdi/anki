@@ -50,16 +50,17 @@ public static partial class OxfordHtmlParser
     /// homograph. The "Nearby words" sidebar (an alphabetical-neighbor list meant for browsing) is
     /// the only place the site cross-references them: since homographs share identical spelling,
     /// they always sort adjacent to each other and to the page currently open (marked "selected"),
-    /// so every other "Nearby words" row whose own headword text (ignoring its part-of-speech tag)
-    /// matches the selected row's is another homograph's page to fetch.
+    /// so every other "Nearby words" row whose own headword text (ignoring its part-of-speech tag
+    /// and homograph number - "tear¹ verb" and "tear² noun" are both homographs of "tear") matches
+    /// the selected row's is another homograph's page to fetch.
+    ///
+    /// The list is only a short window around the open page, so it can miss homographs further
+    /// along (e.g. "tear¹ verb"'s page lists "tear² verb" but not "tear² noun") - a caller wanting
+    /// every homograph has to keep following the lists on the pages this returns.
     /// </summary>
     public static List<string> FindOtherHomographUrls(string html)
     {
-        var parser = new HtmlParser();
-        using var document = parser.ParseDocument(html);
-
-        var nearby = document.QuerySelector(".nearby");
-        var links = nearby is null ? Enumerable.Empty<IElement>() : nearby.QuerySelectorAll("a");
+        var links = NearbyLinks(html);
 
         var selected = links.FirstOrDefault(link => link.ClassList.Contains("selected"));
         var selectedWord = HeadwordText(selected);
@@ -87,10 +88,22 @@ public static partial class OxfordHtmlParser
         return urls;
     }
 
+    /// <summary>The URL of the page itself, as its own (selected) "Nearby words" row links to it - lets a caller recognize this page when another homograph's list links back to it.</summary>
+    public static string? FindOwnPageUrl(string html) =>
+        NullIfEmpty(NearbyLinks(html).FirstOrDefault(link => link.ClassList.Contains("selected"))?.GetAttribute("href"));
+
+    private static List<IElement> NearbyLinks(string html)
+    {
+        var parser = new HtmlParser();
+        using var document = parser.ParseDocument(html);
+        var nearby = document.QuerySelector(".nearby");
+        return nearby is null ? [] : nearby.QuerySelectorAll("a").ToList();
+    }
+
     private static string? HeadwordText(IElement? link)
     {
         var headwordElement = link?.QuerySelector(".hwd");
-        return headwordElement is null ? null : NullIfEmpty(ExtractTextExcluding(headwordElement, "pos"));
+        return headwordElement is null ? null : NullIfEmpty(ExtractTextExcluding(headwordElement, "pos, hm").Trim());
     }
 
     private static OxfordDictionaryEntry ExtractEntry(IElement entryElement)
@@ -112,7 +125,8 @@ public static partial class OxfordHtmlParser
 
         return new OxfordDictionaryEntry
         {
-            Headword = ExtractText(webtop, ".headword") ?? "",
+            Headword = ExtractHeadword(webtop),
+            HomographNumber = ExtractText(webtop, ".headword .hm"),
             PartOfSpeech = ExtractText(webtop, ".pos"),
             Pronunciations = ExtractPronunciations(webtop),
             InflectionForms = ExtractInflectionForms(entryElement),
@@ -128,6 +142,13 @@ public static partial class OxfordHtmlParser
             // other one here, only ever holds a single value for the whole page.
             Hyphenation = ExtractPvPatternText(entryElement.QuerySelector(".pv-g .pv")),
         };
+    }
+
+    /// <summary>The headword without its superscript homograph number - Oxford prints "tear" + &lt;span class="hm"&gt;1&lt;/span&gt; inside .headword, which would otherwise read as "tear1".</summary>
+    private static string ExtractHeadword(IElement? webtop)
+    {
+        var headword = webtop?.QuerySelector(".headword");
+        return headword is null ? "" : ExtractTextExcluding(headword, ".hm").Trim();
     }
 
     /// <summary>

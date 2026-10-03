@@ -392,6 +392,85 @@ public class LongmanHtmlParserTests
     }
 
     [Fact]
+    public void Parse_AppointmentFixture_ExtractsEveryCollocationExampleWithGeoAndVariants()
+    {
+        var html = LoadFixture("longman-appointment.html");
+
+        var result = LongmanHtmlParser.Parse("appointment", html);
+
+        Assert.Null(result.Error);
+        var group = Assert.Single(result.Entries[0].CollocationGroups);
+        var verbs = Assert.Single(group.Sections, s => s.Heading == "verbs");
+
+        // The British phrase and its American variant each get their own example - both are kept.
+        var book = Assert.Single(verbs.Collocations, c => c.Phrase == "book an appointment");
+        Assert.Equal("British English", book.Geo);
+        var schedule = Assert.Single(book.Variants);
+        Assert.Equal("schedule an appointment", schedule.Phrase);
+        Assert.Equal("American English", schedule.Geo);
+        Assert.Null(schedule.LinkWord);
+        Assert.Equal("make an appointment", book.Gloss);
+        Assert.Equal(
+            ["Have you booked another appointment at the clinic?", "I’ve scheduled your appointment for 9.30."],
+            book.Examples);
+
+        var have = Assert.Single(verbs.Collocations, c => c.Phrase == "have an appointment");
+        Assert.Null(have.Geo);
+        Assert.Empty(have.Variants);
+        Assert.Single(have.Examples);
+
+        var nouns = Assert.Single(group.Sections, s => s.Heading == "ADJECTIVES/NOUN + appointment");
+        Assert.Equal("British English", Assert.Single(nouns.Collocations, c => c.Phrase == "a hospital appointment").Geo);
+
+        var doctors = Assert.Single(nouns.Collocations, c => c.Phrase == "a doctor’s appointment");
+        var atTheDoctors = Assert.Single(doctors.Variants);
+        Assert.Equal("an appointment at the doctor’s", atTheDoctors.Phrase);
+        Assert.Equal("also", atTheDoctors.LinkWord);
+        Assert.Null(atTheDoctors.Geo);
+        Assert.Equal(2, doctors.Examples.Count);
+    }
+
+    [Fact]
+    public void Parse_ShoppingAndReadFixtures_ExtractSenseGeo()
+    {
+        var shopping = LongmanHtmlParser.Parse("shopping", LoadFixture("longman-shopping.html"));
+        Assert.Contains(shopping.Entries.SelectMany(e => e.Senses), s => s.SenseLabel == "3" && s.Geo == "British English");
+
+        var read = LongmanHtmlParser.Parse("read", LoadFixture("longman-read.html"));
+        Assert.Contains(read.Entries.SelectMany(e => e.Senses), s => s.SenseLabel == "11" && s.Geo == "British English");
+    }
+
+    [Fact]
+    public void Parse_BreakFixture_ExtractsSenseVariant()
+    {
+        var result = LongmanHtmlParser.Parse("break", LoadFixture("longman-break.html"));
+
+        var sense = Assert.Single(
+            result.Entries.SelectMany(e => e.Senses),
+            s => s.Variants.Any(v => v.Phrase == "commercial break"));
+        Assert.Equal("also", sense.Variants[0].LinkWord);
+        Assert.Contains("advertisements", sense.Definition);
+    }
+
+    [Fact]
+    public void Parse_PutFixture_ExtractsThesaurusVariantWithGeo()
+    {
+        var result = LongmanHtmlParser.Parse("put", LoadFixture("longman-put.html"));
+
+        var stick = result.Entries
+            .SelectMany(e => e.ThesaurusSections)
+            .SelectMany(s => s.Entries)
+            .First(e => e.Word == "stick");
+        // put's THESAURUS box is one unheaded section - it must still come through.
+        Assert.Contains(result.Entries.SelectMany(e => e.ThesaurusSections), s => s.Heading is null);
+        var bung = Assert.Single(stick.Variants);
+        Assert.Equal("bung", bung.Phrase);
+        Assert.Equal("also", bung.LinkWord);
+        Assert.Equal("British English", bung.Geo);
+        Assert.Null(stick.Geo);
+    }
+
+    [Fact]
     public void Parse_BreakFixture_ExtractsThesaurusSections()
     {
         var html = LoadFixture("longman-break.html");
