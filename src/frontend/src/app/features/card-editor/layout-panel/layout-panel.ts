@@ -39,9 +39,12 @@ import { CardEditorStore, type CardSide } from '../card-editor.store';
       min-width: 0;
     }
   `,
+  // Side by side with the results (xl), it sticks to the top of the viewport so the preview stays
+  // in view while the results grow, scrolling on its own if it's taller than the screen. The divider
+  // between the two is the results panel's border, so it runs the full height of the column.
   host: {
     class:
-      'flex flex-col gap-4 border-t border-surface-200 p-4 xl:w-2/5 xl:border-t-0 xl:border-l dark:border-surface-700',
+      'flex flex-col gap-4 border-t border-surface-200 p-4 xl:sticky xl:top-0 xl:max-h-dvh xl:w-2/5 xl:self-start xl:overflow-y-auto xl:border-t-0 dark:border-surface-700',
   },
 })
 export class LayoutPanel {

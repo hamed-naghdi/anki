@@ -40,13 +40,20 @@
       } @else {
         <ul class="divide-y divide-surface-200 dark:divide-surface-700">
           @for (card of filteredCards(); track card.noteId) {
-            <li>
+            @let flag = ankiFlag(card.flag);
+            <li [class]="flag?.row">
               @if (card.editable) {
                 <a
                   [routerLink]="['/cards', card.noteId, 'edit']"
-                  class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-surface-100 dark:hover:bg-surface-800"
+                  class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                  [class]="flag ? '' : 'hover:bg-surface-100 dark:hover:bg-surface-800'"
                 >
-                  <span class="font-medium text-(--p-text-color)">{{ card.word }}</span>
+                  <span class="flex items-center gap-2 font-medium text-(--p-text-color)">
+                    {{ card.word }}
+                    @if (flag) {
+                      <ng-container *ngTemplateOutlet="flagIcon; context: { $implicit: flag }" />
+                    }
+                  </span>
                   <span class="text-xs text-(--p-text-muted-color)">{{ card.deck }}</span>
                 </a>
               } @else {
@@ -54,7 +61,12 @@
                   class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
                   title="Added before card editing was supported — re-create it to edit"
                 >
-                  <span class="text-(--p-text-muted-color)">{{ card.word }}</span>
+                  <span class="flex items-center gap-2 text-(--p-text-muted-color)">
+                    {{ card.word }}
+                    @if (flag) {
+                      <ng-container *ngTemplateOutlet="flagIcon; context: { $implicit: flag }" />
+                    }
+                  </span>
                   <span class="text-xs text-(--p-text-muted-color)"
                     >{{ card.deck }} · not editable</span
                   >
@@ -67,3 +79,15 @@
     </div>
   }
 </div>
+
+<ng-template #flagIcon let-flag>
+  <svg
+    data-p-icon="flag-fill"
+    class="size-3.5"
+    [class]="flag.icon"
+    role="img"
+    [attr.aria-label]="flag.name + ' flag'"
+  >
+    <title>{{ flag.name }} flag</title>
+  </svg>
+</ng-template>

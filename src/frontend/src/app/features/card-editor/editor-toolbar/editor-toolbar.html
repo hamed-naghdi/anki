@@ -11,7 +11,7 @@
   <!-- Only the search box sits in the <form>: Enter submits a form implicitly only when it has a
        single text field, and the pickers here carry inputs of their own. They still edit the same
        form model through [formField]. -->
-  <form [formRoot]="searchForm" class="max-w-sm min-w-xl flex-1">
+  <form [formRoot]="searchForm" class="max-w-sm flex-1">
     <p-iconfield>
       <p-inputicon>
         <svg data-p-icon="search"></svg>
@@ -21,6 +21,7 @@
         pInputText
         type="text"
         placeholder="Search a word…"
+        autocomplete="off"
         class="w-full"
         [formField]="searchForm.word"
       />
@@ -48,6 +49,21 @@
   />
 
   <app-deck-picker />
+
+  <p-select
+    [formField]="flagForm"
+    [options]="flagOptions"
+    optionValue="value"
+    class="w-36"
+    title="The flag this card gets in Anki - applied when the card is added or saved"
+  >
+    <ng-template #selectedItem let-option>
+      <ng-container *ngTemplateOutlet="flagOption; context: { $implicit: option }" />
+    </ng-template>
+    <ng-template #item let-option>
+      <ng-container *ngTemplateOutlet="flagOption; context: { $implicit: option }" />
+    </ng-template>
+  </p-select>
 
   <button
     pButton
@@ -93,3 +109,13 @@
     >{{ store.isEditing ? 'Save changes' : 'Add to Anki' }}
   </button>
 </div>
+
+<ng-template #flagOption let-option>
+  <span class="flex items-center gap-2">
+    @if (option.flag; as flag) {
+      <svg data-p-icon="flag-fill" class="size-3.5" [class]="flag.icon"></svg>{{ flag.name }}
+    } @else {
+      <svg data-p-icon="flag" class="size-3.5 text-(--p-text-muted-color)"></svg>No flag
+    }
+  </span>
+</ng-template>

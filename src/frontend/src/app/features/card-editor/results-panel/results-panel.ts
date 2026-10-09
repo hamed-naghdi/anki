@@ -26,7 +26,10 @@ const chipCache = new WeakMap<EntryField, string>();
     EntrySummary,
   ],
   templateUrl: './results-panel.html',
-  host: { class: 'flex min-w-0 flex-1 flex-col gap-4 p-4' },
+  host: {
+    class:
+      'flex min-w-0 flex-1 flex-col gap-4 border-surface-200 p-4 xl:border-r dark:border-surface-700',
+  },
 })
 export class ResultsPanel {
   readonly side = input.required<CardSide>();

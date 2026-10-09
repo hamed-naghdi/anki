@@ -1,4 +1,6 @@
-<div class="overflow-hidden">
+<!-- overflow-clip, not overflow-hidden: it clips the off-canvas sidebar the same way, but doesn't
+     become a scroll container - which would stop the card editor's sticky preview from sticking. -->
+<div class="overflow-clip">
   <p-sidebar-layout class="min-h-dvh! relative!">
     @if (isMobile() && navOpen()) {
       <p-sidebar-backdrop class="absolute!" />
@@ -80,3 +82,29 @@
     </p-sidebar-main>
   </p-sidebar-layout>
 </div>
+
+<!-- The app's one toast outlet (see core/toasts.ts). A custom template so a toast can carry action
+     buttons, e.g. "Show in Anki" after adding a card. -->
+<p-toast position="top-right">
+  <ng-template #message let-message let-close="closeFn">
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <span class="font-semibold">{{ message.summary }}</span>
+      @if (message.detail) {
+        <span class="text-sm">{{ message.detail }}</span>
+      }
+      @if (toastData(message.data).actions; as actions) {
+        <span class="mt-1 flex gap-3">
+          @for (action of actions; track action.label) {
+            <button
+              type="button"
+              class="cursor-pointer text-sm font-medium underline"
+              (click)="action.run(); close($event)"
+            >
+              {{ action.label }}
+            </button>
+          }
+        </span>
+      }
+    </div>
+  </ng-template>
+</p-toast>

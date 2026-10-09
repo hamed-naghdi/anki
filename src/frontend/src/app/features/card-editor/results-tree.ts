@@ -330,7 +330,9 @@ function fieldKey(
 ): string {
   if (collocationIndex !== undefined) {
     const base = `${entryKey}-collocation-${collocationGroupIndex}-${collocationSectionIndex}-${collocationIndex}`;
-    return collocationExampleIndex !== undefined ? `${base}-example-${collocationExampleIndex}` : base;
+    return collocationExampleIndex !== undefined
+      ? `${base}-example-${collocationExampleIndex}`
+      : base;
   }
   if (exampleIndex !== undefined) {
     // A plain example keeps the "-example-N" key it had before example groups existed.

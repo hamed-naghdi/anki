@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { USER_FLAG_MASK, userFlag } from './anki-flags';
 import { AnkiConnect } from './anki-connect';
 import { CardStylesheet } from '../../card/card-stylesheet';
 import {
@@ -20,6 +21,8 @@ interface NoteInfo {
 interface CardInfo {
   cardId: number;
   deckName: string;
+  /** Raw card flags - the user flag (see anki-flags.ts) is the low 3 bits. */
+  flags: number;
 }
 
 /** The rendered card plus everything needed to reopen it in the editor. */
@@ -36,6 +39,8 @@ export interface LoadedCard {
   state: CardState;
   cardIds: number[];
   deckName: string;
+  /** The flag on the note's card (0 = none). */
+  flag: number;
 }
 
 /** One row of the card list. */
@@ -43,6 +48,8 @@ export interface CardSummary {
   noteId: number;
   word: string;
   deck: string;
+  /** The flag set on the note's card in Anki (0 = none). */
+  flag: number;
   /** False for cards with no saved editor state (added before editing existed, or edited in Anki). */
   editable: boolean;
 }
@@ -115,7 +122,12 @@ export class AnkiNotes {
     }
 
     const cards = await this.anki.invoke<CardInfo[]>('cardsInfo', { cards: note.cards });
-    return { state, cardIds: note.cards, deckName: cards[0]?.deckName ?? '' };
+    return {
+      state,
+      cardIds: note.cards,
+      deckName: cards[0]?.deckName ?? '',
+      flag: userFlag(cards[0]?.flags ?? 0),
+    };
   }
 
   /** Every note of the app's note types, newest first. */
@@ -130,20 +142,41 @@ export class AnkiNotes {
     const cards = await this.anki.invoke<CardInfo[]>('cardsInfo', {
       cards: notes.flatMap((note) => note.cards),
     });
-    const deckByCard = new Map(cards.map((card) => [card.cardId, card.deckName]));
+    const cardById = new Map(cards.map((card) => [card.cardId, card]));
 
     return notes
       .map((note): CardSummary => {
         const state = note.fields['State']?.value.trim() ?? '';
         const front = plainText(note.fields['Front']?.value ?? '').slice(0, 40);
+        const card = cardById.get(note.cards[0] ?? -1);
         return {
           noteId: note.noteId,
           word: savedWord(state) || front || '(untitled)',
-          deck: deckByCard.get(note.cards[0] ?? -1) ?? '',
+          deck: card?.deckName ?? '',
+          flag: userFlag(card?.flags ?? 0),
           editable: state.length > 0,
         };
       })
       .sort((a, b) => b.noteId - a.noteId);
+  }
+
+  /** Sets (or, with 0, clears) the flag on every card of a note - as Anki's Flag menu does. */
+  async setFlag(noteId: number, flag: number): Promise<void> {
+    const cardIds = await this.anki.invoke<number[]>('findCards', { query: `nid:${noteId}` });
+    const cards = await this.anki.invoke<CardInfo[]>('cardsInfo', { cards: cardIds });
+    for (const card of cards) {
+      // AnkiConnect reports a failed update in its result ([[false, message]] or false), not as
+      // an error - so it's checked here.
+      const result = await this.anki.invoke<unknown>('setSpecificValueOfCard', {
+        card: card.cardId,
+        keys: ['flags'],
+        newValues: [(card.flags & ~USER_FLAG_MASK) | flag],
+      });
+      if (!Array.isArray(result) || result[0] !== true) {
+        const message = Array.isArray(result) && Array.isArray(result[0]) ? result[0][1] : null;
+        throw new Error(typeof message === 'string' ? message : 'Anki refused the flag change.');
+      }
+    }
   }
 
   /** Opens Anki's card browser filtered to a note. */

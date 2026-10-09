@@ -6,8 +6,10 @@ import { Home } from '@primeicons/angular/home';
 import { Sidebar as SidebarIcon } from '@primeicons/angular/sidebar';
 import { ButtonDirective } from 'primeng/button';
 import { SidebarModule } from 'primeng/sidebar';
+import { Toast } from 'primeng/toast';
 import { filter, map } from 'rxjs';
 import { mediaQuery } from '../core/browser/media-query';
+import type { ToastData } from '../core/toasts';
 
 /** App chrome: the navigation sidebar (off-canvas on small screens) and the page header. */
 @Component({
@@ -17,6 +19,7 @@ import { mediaQuery } from '../core/browser/media-query';
     RouterLink,
     RouterLinkActive,
     SidebarModule,
+    Toast,
     ButtonDirective,
     Clone,
     Home,
@@ -30,6 +33,10 @@ export class Shell {
   protected readonly isMobile = mediaQuery('(max-width: 1023px)');
   /** Open by default on desktop, closed on mobile - reset whenever the breakpoint is crossed. */
   protected readonly navOpen = linkedSignal(() => !this.isMobile());
+
+  protected toastData(data: unknown): ToastData {
+    return (data as ToastData | undefined) ?? {};
+  }
 
   protected readonly pageTitle = toSignal(
     this.router.events.pipe(

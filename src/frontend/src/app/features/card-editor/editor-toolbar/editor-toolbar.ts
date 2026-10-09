@@ -1,6 +1,9 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, ElementRef, afterNextRender, inject, viewChild } from '@angular/core';
 import { FormField, FormRoot, disabled, form } from '@angular/forms/signals';
 import { ArrowsH } from '@primeicons/angular/arrows-h';
+import { Flag } from '@primeicons/angular/flag';
+import { FlagFill } from '@primeicons/angular/flag-fill';
 import { Plus } from '@primeicons/angular/plus';
 import { Refresh } from '@primeicons/angular/refresh';
 import { Search } from '@primeicons/angular/search';
@@ -10,14 +13,16 @@ import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
+import { FLAG_OPTIONS } from '../../../core/anki/anki-flags';
 import { LANGUAGES } from '../../../core/dictionary/dictionary-sources';
 import { CardEditorStore } from '../card-editor.store';
 import { DeckPicker } from './deck-picker';
 
-/** Search box and source/deck pickers, plus the actions that send the card to Anki. */
+/** Search box and source/deck/flag pickers, plus the actions that send the card to Anki. */
 @Component({
   selector: 'app-editor-toolbar',
   imports: [
+    NgTemplateOutlet,
     FormRoot,
     FormField,
     Select,
@@ -27,6 +32,8 @@ import { DeckPicker } from './deck-picker';
     ButtonDirective,
     DeckPicker,
     ArrowsH,
+    Flag,
+    FlagFill,
     Plus,
     Refresh,
     Search,
@@ -37,6 +44,7 @@ import { DeckPicker } from './deck-picker';
 export class EditorToolbar {
   protected readonly store = inject(CardEditorStore);
   protected readonly languages = [...LANGUAGES];
+  protected readonly flagOptions = [...FLAG_OPTIONS];
 
   // A re-edited card keeps the search it was made from, so its language and word are fixed.
   protected readonly searchForm = form(
@@ -47,6 +55,8 @@ export class EditorToolbar {
     },
     { submission: { action: async () => this.store.search() } },
   );
+
+  protected readonly flagForm = form(this.store.flag);
 
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 

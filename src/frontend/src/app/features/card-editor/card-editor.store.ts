@@ -2,6 +2,7 @@ import { httpResource } from '@angular/common/http';
 import {
   Injectable,
   computed,
+  effect,
   inject,
   linkedSignal,
   resource,
@@ -9,13 +10,14 @@ import {
   type Signal,
   type WritableSignal,
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import type { CardLayout, EntryField, TextDirection } from '../../card/card-field';
 import { CARD_STATE_VERSION, encodeState, type CardState } from '../../card/card-state';
 import { renderCardSide } from '../../card/render-card';
 import { AnkiDecks } from '../../core/anki/anki-decks';
 import { AnkiNotes, type LoadedCard } from '../../core/anki/anki-notes';
 import { valueOf } from '../../core/resource';
+import { Toasts } from '../../core/toasts';
 import { dictionaryLookupRequest } from '../../core/dictionary/dictionary-api';
 import type { DictionarySearchResult } from '../../core/dictionary/dictionary.models';
 import {
@@ -93,10 +95,6 @@ export class SideState {
   }
 }
 
-export type ActionResult = { ok: true } | { ok: false; message: string };
-export type SaveResult =
-  { ok: true; noteId: number; updated: boolean } | { ok: false; message: string };
-
 /**
  * State and actions of one card editor - provided by the CardEditor page, so each visit starts
  * fresh. Opened as /cards/:noteId/edit it re-edits that saved card; otherwise it starts from a
@@ -105,6 +103,8 @@ export type SaveResult =
 @Injectable()
 export class CardEditorStore {
   private readonly notes = inject(AnkiNotes);
+  private readonly toasts = inject(Toasts);
+  private readonly router = inject(Router);
   readonly decks = inject(AnkiDecks);
 
   readonly noteId: number | null = parseNoteId(
@@ -154,6 +154,8 @@ export class CardEditorStore {
     const picked = sources.filter((source) => available.includes(source));
     this.submitted.set({ word: trimmed, sources: picked.length ? picked : available });
     this.query.update((query) => ({ ...query, word: '' }));
+    // A new search starts a new card, so it starts unflagged.
+    this.flag.set(0);
   }
 
   clearSearch(): void {
@@ -175,6 +177,17 @@ export class CardEditorStore {
 
   readonly word = computed(() => this.session()?.word ?? this.submitted()?.word ?? '');
   readonly droppedFields = computed(() => this.session()?.droppedFields ?? 0);
+
+  // Reported once, as soon as a saved card's layout has been restored.
+  private readonly reportDroppedFields = effect(() => {
+    const dropped = this.droppedFields();
+    if (dropped) {
+      this.toasts.warn(
+        `${dropped} field(s) couldn’t be restored`,
+        'The dictionary result changed since this card was saved. Saving now will drop them.',
+      );
+    }
+  });
 
   readonly status = computed<'idle' | 'loading' | 'error' | 'ready'>(() => {
     const source = this.isEditing ? this.savedCard : this.lookup;
@@ -269,7 +282,11 @@ export class CardEditorStore {
   // --- saving to Anki ---
 
   readonly saving = signal(false);
-  readonly saveResult = signal<SaveResult | null>(null);
+
+  /** The Anki flag the card gets on save (0 = none) - starts from the saved card's own. */
+  readonly flag = linkedSignal(() => valueOf(this.savedCard)?.flag ?? 0);
+  /** The edited card's flag as Anki has it now - so only a real change is sent. */
+  private readonly ankiFlag = linkedSignal(() => valueOf(this.savedCard)?.flag ?? 0);
 
   /** Needs a deck and something on both sides - a one-sided card isn't worth sending. */
   readonly canSave = computed(
@@ -287,7 +304,6 @@ export class CardEditorStore {
     }
 
     this.saving.set(true);
-    this.saveResult.set(null);
     const content = {
       language: this.query().language,
       front: renderCardSide(this.sides.front.layout()),
@@ -296,19 +312,54 @@ export class CardEditorStore {
       deckName,
     };
 
+    const verb = this.isEditing ? 'save' : 'add';
     try {
       const saved = valueOf(this.savedCard);
+      const updated = this.noteId !== null && !!saved;
+      let noteId: number;
       if (this.noteId !== null && saved) {
         await this.notes.update(this.noteId, saved.cardIds, content);
-        this.saveResult.set({ ok: true, noteId: this.noteId, updated: true });
+        noteId = this.noteId;
       } else {
-        const noteId = await this.notes.add(content);
-        this.saveResult.set({ ok: true, noteId, updated: false });
+        noteId = await this.notes.add(content);
+      }
+      // The note is in Anki by now, so a failed flag change is reported on its own below.
+      const flag = this.flag();
+      const current = updated ? this.ankiFlag() : 0;
+      const flagError = flag !== current ? await this.applyFlag(noteId, flag) : null;
+      if (updated && !flagError) {
+        this.ankiFlag.set(flag);
+      }
+
+      // The next card (or another pass over this one) starts from the front again.
+      this.activeSide.set('front');
+      const showInAnki = { label: 'Show in Anki', run: () => this.showInAnki(noteId) };
+      const edit = {
+        label: 'Edit',
+        run: () => void this.router.navigate(['/cards', noteId, 'edit']),
+      };
+      this.toasts.success(
+        updated ? 'Card saved' : 'Card added',
+        `${updated ? 'Saved' : 'Added'} to ${deckName} as a ${this.languageLabel()}-Dictionary note.`,
+        updated ? [showInAnki] : [showInAnki, edit],
+      );
+      if (flagError) {
+        this.toasts.error('Couldn’t set the card’s flag', flagError);
       }
     } catch (error) {
-      this.saveResult.set({ ok: false, message: errorMessage(error) });
+      this.toasts.error(`Couldn’t ${verb} the card`, errorMessage(error));
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  /** Sets the note's flag in Anki, returning why it failed (or null). */
+  private async applyFlag(noteId: number, flag: number): Promise<string | null> {
+    try {
+      await this.notes.setFlag(noteId, flag);
+      return null;
+    } catch (error) {
+      return errorMessage(error);
     }
   }
 
@@ -317,7 +368,6 @@ export class CardEditorStore {
   }
 
   readonly pushingStyling = signal(false);
-  readonly pushStylingResult = signal<ActionResult | null>(null);
 
   /** Re-pushes the compiled card styling to Anki's note type, without adding or changing a card. */
   async pushStyling(): Promise<void> {
@@ -325,12 +375,14 @@ export class CardEditorStore {
       return;
     }
     this.pushingStyling.set(true);
-    this.pushStylingResult.set(null);
     try {
       await this.notes.pushStyling(this.query().language);
-      this.pushStylingResult.set({ ok: true });
+      this.toasts.success(
+        'Anki styling updated',
+        `Pushed the current styling to the ${this.languageLabel()}-Dictionary note type.`,
+      );
     } catch (error) {
-      this.pushStylingResult.set({ ok: false, message: errorMessage(error) });
+      this.toasts.error('Couldn’t update the Anki styling', errorMessage(error));
     } finally {
       this.pushingStyling.set(false);
     }

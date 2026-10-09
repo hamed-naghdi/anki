@@ -8,56 +8,6 @@
 
 <app-editor-toolbar />
 
-@if (store.droppedFields(); as dropped) {
-  <p-message severity="warn">
-    {{ dropped }} field(s) couldn’t be restored — the dictionary result changed since this card was
-    saved. Saving now will drop them.
-  </p-message>
-}
-
-@if (store.saveResult(); as result) {
-  @if (result.ok) {
-    <p-message severity="success">
-      {{ result.updated ? 'Saved' : 'Added' }} to {{ store.decks.selectedDeck() }} as a
-      {{ store.languageLabel() }}-Dictionary note.
-      <button
-        pButton
-        link
-        type="button"
-        class="p-0! align-baseline"
-        (click)="store.showInAnki(result.noteId)"
-      >
-        Show in Anki
-      </button>
-      @if (!result.updated) {
-        <button
-          pButton
-          link
-          type="button"
-          class="p-0! align-baseline"
-          (click)="editSavedCard(result.noteId)"
-        >
-          Edit
-        </button>
-      }
-    </p-message>
-  } @else {
-    <p-message severity="error">
-      Couldn’t {{ store.isEditing ? 'save' : 'add' }} the card: {{ result.message }}
-    </p-message>
-  }
-}
-
-@if (store.pushStylingResult(); as result) {
-  @if (result.ok) {
-    <p-message severity="success">
-      Pushed the current styling to the {{ store.languageLabel() }}-Dictionary note type in Anki.
-    </p-message>
-  } @else {
-    <p-message severity="error">Couldn’t update the Anki styling: {{ result.message }}</p-message>
-  }
-}
-
 <section class="mt-2">
   @switch (store.status()) {
     @case ('idle') {

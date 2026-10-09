@@ -99,7 +99,9 @@ describe('results tree', () => {
       results: [
         {
           source: 'Oxford',
-          entries: [{ ...makeEntry, headword: 'tear', homographNumber: '12', partOfSpeech: 'noun' }],
+          entries: [
+            { ...makeEntry, headword: 'tear', homographNumber: '12', partOfSpeech: 'noun' },
+          ],
         },
       ],
     }).get('Oxford')!;
