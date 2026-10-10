@@ -15,7 +15,7 @@
 /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
    AnkiNotes reads it back from the note type's styling to decide when to re-push. */
 .pd-card {
-  --pd-style-version: 14;
+  --pd-style-version: 15;
 
   /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
      content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so this
@@ -140,6 +140,10 @@
 
 .pd-inline-item.pd-inline-item-flow {
   display: inline;
+}
+
+.pd-inline-item.pd-inline-item-line {
+  display: block;
 }
 
 .pd-headword {

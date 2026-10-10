@@ -108,6 +108,28 @@ describe('results tree', () => {
     expect(tear2[0].label).toBe('tear¹² (noun)');
   });
 
+  it('ends the head group with the pronunciations, which render on lines of their own', () => {
+    const [entry] = buildResultTrees({
+      word: 'make',
+      results: [
+        {
+          source: 'Oxford',
+          entries: [{ ...makeEntry, frequencyLabels: [{ code: 'S1' }] }],
+        },
+      ],
+    }).get('Oxford')!;
+    expect(keysOf(entry.children![0].children!).map((key) => key.replace('Oxford-0-', ''))).toEqual(
+      [
+        'headword',
+        'homographNumber',
+        'partOfSpeech',
+        'frequencyLabels',
+        'pronunciation-british',
+        'pronunciation-american',
+      ],
+    );
+  });
+
   it('collects every selectable field leaf', () => {
     expect(fields.get('Longman-0-sense-0-example-2-1')).toMatchObject({
       kind: 'example',

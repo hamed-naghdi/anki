@@ -172,7 +172,8 @@ function entryNode(
   });
 
   // Checking a whole group places its fields in this order, so it follows the printed-dictionary
-  // order regardless of which of these a given source actually has.
+  // order regardless of which of these a given source actually has. Pronunciations come last: each
+  // renders on a line of its own, so anything after them would be pushed onto a line too.
   const head: ResultNode[] = [];
   if (entry.isKeyword || entry.keywordLevel) head.push(field('keyword', 'Keyword & level'));
   head.push(field('headword', 'Headword'));
@@ -180,9 +181,9 @@ function entryNode(
   if (entry.hyphenation) head.push(field('hyphenation', 'Hyphenation'));
   if (entry.partOfSpeech) head.push(field('partOfSpeech', 'Part of speech'));
   if (entry.grammar) head.push(field('grammar', 'Grammar'));
+  if (entry.frequencyLabels?.length) head.push(field('frequencyLabels', 'Frequency'));
   if (britishPhonetic(entry)) head.push(field('pronunciation-british', 'Pronunciation (UK)'));
   if (americanPhonetic(entry)) head.push(field('pronunciation-american', 'Pronunciation (US)'));
-  if (entry.frequencyLabels?.length) head.push(field('frequencyLabels', 'Frequency'));
 
   const children = [groupNode(`${entryKey}-head`, 'Head', head)];
 

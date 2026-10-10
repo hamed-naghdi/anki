@@ -33,6 +33,24 @@ describe('renderCardSide', () => {
     expect(html).toContain('<span class="pd-group-number">1</span>');
   });
 
+  it('puts each pronunciation on a line of its own, after the inline head items', () => {
+    const keyOf = (kind: string) => [...fields].find(([, field]) => field.kind === kind)![0];
+    const html = renderCardSide([
+      {
+        key: 'g',
+        fields: [
+          place(keyOf('headword')),
+          place(keyOf('pronunciation-british')),
+          place(keyOf('pronunciation-american')),
+        ],
+      },
+    ]);
+    expect(html).toContain('<span class="pd-inline-item"><h2 class="pd-headword">');
+    expect(
+      html.match(/class="pd-inline-item pd-inline-item-line"><span class="pd-pronunciation">/g),
+    ).toHaveLength(2);
+  });
+
   it('prefixes a nested example placed without its header with the group phrase', () => {
     const html = renderCardSide([{ key: 'g', fields: [place('Longman-0-sense-0-example-1-0')] }]);
     expect(html).toContain('<span class="pd-example-pattern">make somebody something:</span>');

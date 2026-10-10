@@ -266,10 +266,14 @@ export function renderField(field: CardField, options: RenderFieldOptions = {}):
 }
 
 // Inline items keep the headword/homograph/part of speech in their own typography; a sense
-// definition flows as text, everything else sits in an inline-block.
+// definition flows as text, a pronunciation takes a line of its own (like Oxford's), everything
+// else sits in an inline-block.
 function renderInlineItem(field: CardField): string {
-  const wrapClass =
-    field.kind === 'senseDefinition' ? 'pd-inline-item pd-inline-item-flow' : 'pd-inline-item';
+  let wrapClass = 'pd-inline-item';
+  if (field.kind === 'senseDefinition') wrapClass += ' pd-inline-item-flow';
+  if (field.kind === 'pronunciation-british' || field.kind === 'pronunciation-american') {
+    wrapClass += ' pd-inline-item-line';
+  }
   let inner: string;
   switch (field.kind) {
     case 'headword':
