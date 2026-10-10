@@ -16,6 +16,7 @@ import { CARD_STATE_VERSION, encodeState, type CardState } from '../../card/card
 import { renderCardSide } from '../../card/render-card';
 import { AnkiDecks } from '../../core/anki/anki-decks';
 import { AnkiNotes, type LoadedCard } from '../../core/anki/anki-notes';
+import { readStorage, writeStorage } from '../../core/browser/storage';
 import { valueOf } from '../../core/resource';
 import { Toasts } from '../../core/toasts';
 import { dictionaryLookupRequest } from '../../core/dictionary/dictionary-api';
@@ -38,6 +39,10 @@ import {
 
 export type CardSide = 'front' | 'back';
 export const CARD_SIDES: readonly CardSide[] = ['front', 'back'];
+
+/** Which screen the card preview imitates - phones get larger card text (see card.css). */
+export type PreviewDevice = 'desktop' | 'phone';
+const PREVIEW_DEVICE_KEY = 'anki.previewDevice';
 
 /** The search box's form model. */
 export interface SearchQuery {
@@ -217,6 +222,16 @@ export class CardEditorStore {
   // --- the two sides ---
 
   readonly activeSide = signal<CardSide>('front');
+
+  /** Shared by both sides' previews and remembered between visits. */
+  readonly previewDevice = signal<PreviewDevice>(
+    readStorage(PREVIEW_DEVICE_KEY) === 'phone' ? 'phone' : 'desktop',
+  );
+
+  setPreviewDevice(device: PreviewDevice): void {
+    this.previewDevice.set(device);
+    writeStorage(PREVIEW_DEVICE_KEY, device);
+  }
 
   readonly sides: Record<CardSide, SideState> = {
     front: new SideState(this.session, 'front', this.resultSources),

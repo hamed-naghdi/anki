@@ -1,5 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
+import { Desktop } from '@primeicons/angular/desktop';
 import { GripVertical } from '@primeicons/angular/grip-vertical';
+import { Mobile } from '@primeicons/angular/mobile';
 import { Plus } from '@primeicons/angular/plus';
 import { Times } from '@primeicons/angular/times';
 import { TreeDragDropService, type TreeNode } from 'primeng/api';
@@ -17,7 +19,7 @@ import {
 import { CardHtml } from '../../../card/card-html';
 import { renderCardSide } from '../../../card/render-card';
 import { fromTreeNodes, groupLabel, isValidDrop, toTreeNodes } from '../card-layout';
-import { CardEditorStore, type CardSide } from '../card-editor.store';
+import { CardEditorStore, type CardSide, type PreviewDevice } from '../card-editor.store';
 
 /**
  * One side's card: a live preview (the exact HTML Anki will store) and the drag-and-drop list its
@@ -25,7 +27,7 @@ import { CardEditorStore, type CardSide } from '../card-editor.store';
  */
 @Component({
   selector: 'app-layout-panel',
-  imports: [Tree, ButtonDirective, Textarea, CardHtml, GripVertical, Plus, Times],
+  imports: [Tree, ButtonDirective, Textarea, CardHtml, Desktop, GripVertical, Mobile, Plus, Times],
   templateUrl: './layout-panel.html',
   // p-tree's draggableNodes/droppableNodes silently do nothing without a TreeDragDropService in
   // scope - PrimeNG injects it as optional, but drag-and-drop can't work without it.
@@ -54,6 +56,10 @@ export class LayoutPanel {
   protected readonly state = computed(() => this.store.sides[this.side()]);
 
   protected readonly preview = computed(() => renderCardSide(this.state().layout()));
+  protected readonly devices: { value: PreviewDevice; label: string }[] = [
+    { value: 'desktop', label: 'Desktop' },
+    { value: 'phone', label: 'Phone' },
+  ];
 
   /**
    * The layout as p-tree nodes - a throwaway view rebuilt from the layout on every change. A drop

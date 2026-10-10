@@ -15,7 +15,7 @@
 /* Bump this whenever card.css or render-card.ts changes in a way that affects the rendered card.
    AnkiNotes reads it back from the note type's styling to decide when to re-push. */
 .pd-card {
-  --pd-style-version: 13;
+  --pd-style-version: 14;
 
   /* Resolved from PrimeNG Aura's semantic tokens (text.color / text.mutedColor /
      content.borderColor -> surface.700/500/200 light, surface.0/zinc.400/zinc.700 dark), so this
@@ -33,11 +33,15 @@
 
   box-sizing: border-box;
 
+  /* Every text and icon size on the card is a multiple of this, so one value scales the whole
+     card - see the phone rule below. Not em: em compounds through nested elements. */
+  --pd-font-size: 16px;
+
   /* Beat Anki's default `.card { font-family: arial; font-size: 20px; text-align: center }`. */
   font-family:
     ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
     'Noto Color Emoji';
-  font-size: 16px;
+  font-size: var(--pd-font-size);
   line-height: 1.5;
   text-align: left;
   color: var(--p-text-color);
@@ -54,6 +58,18 @@
   --p-text-color: #ffffff;
   --p-text-muted-color: #a1a1aa;
   --p-content-border-color: #3f3f46;
+}
+
+/* Phones get slightly larger text. The media query is what applies in Anki's mobile apps;
+   `.pd-phone` is the in-app preview's phone mode, which can't trigger a viewport query. */
+@media (max-width: 600px) {
+  .pd-card {
+    --pd-font-size: 18px;
+  }
+}
+
+.pd-phone .pd-card {
+  --pd-font-size: 18px;
 }
 
 /* --- element resets (kept minimal and scoped - no global reset) --- */
@@ -102,7 +118,7 @@
   position: absolute;
   left: 0;
   top: 0.25rem;
-  font-size: 0.875rem;
+  font-size: calc(var(--pd-font-size) * 0.875);
   font-weight: 600;
   color: var(--p-text-muted-color);
 }
@@ -129,7 +145,7 @@
 .pd-headword {
   display: inline;
   font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
-  font-size: 1.5rem;
+  font-size: calc(var(--pd-font-size) * 1.5);
   font-weight: 600;
   color: var(--p-text-color);
 }
@@ -150,7 +166,7 @@
 }
 
 .pd-pos.pd-pos-muted {
-  font-size: 0.875rem;
+  font-size: calc(var(--pd-font-size) * 0.875);
   color: var(--p-text-muted-color);
 }
 
@@ -173,7 +189,7 @@
   display: inline-block;
   border-radius: 0.25rem;
   padding: 0 0.25rem;
-  font-size: 10px;
+  font-size: calc(var(--pd-font-size) * 0.625);
   line-height: 1.4;
   font-weight: 700;
   text-transform: uppercase;
@@ -293,7 +309,7 @@
 }
 
 .pd-relation {
-  font-size: 0.75rem;
+  font-size: calc(var(--pd-font-size) * 0.75);
 }
 
 .pd-relation .pd-badge {
@@ -301,7 +317,7 @@
 }
 
 .pd-freq-dots {
-  font-size: 0.75rem;
+  font-size: calc(var(--pd-font-size) * 0.75);
   letter-spacing: -0.05em;
   color: #b3453f;
 }
@@ -316,7 +332,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 0.875rem;
+  font-size: calc(var(--pd-font-size) * 0.875);
   color: var(--p-text-muted-color);
 }
 
@@ -326,7 +342,7 @@
   gap: 0.125rem;
   border-radius: 0.25rem;
   padding: 0.125rem 0.25rem;
-  font-size: 10px;
+  font-size: calc(var(--pd-font-size) * 0.625);
   font-weight: 500;
   color: var(--p-text-muted-color);
 }
@@ -362,8 +378,8 @@
 }
 
 .pd-i-uk {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: calc(var(--pd-font-size) * 0.75);
+  height: calc(var(--pd-font-size) * 0.75);
   color: #dc2626;
 }
 
@@ -372,8 +388,8 @@
 }
 
 .pd-i-us {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: calc(var(--pd-font-size) * 0.75);
+  height: calc(var(--pd-font-size) * 0.75);
   color: #2563eb;
 }
 
@@ -382,8 +398,8 @@
 }
 
 .pd-i-keyword {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: calc(var(--pd-font-size) * 0.75);
+  height: calc(var(--pd-font-size) * 0.75);
   color: #f59e0b;
 }
 
@@ -392,8 +408,8 @@
 }
 
 .pd-i-muted {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: calc(var(--pd-font-size) * 0.875);
+  height: calc(var(--pd-font-size) * 0.875);
   color: var(--p-text-muted-color);
 }
 
@@ -408,7 +424,7 @@
 }
 
 .pd-inflection-label {
-  font-size: 0.75rem;
+  font-size: calc(var(--pd-font-size) * 0.75);
   font-weight: 500;
   color: var(--p-text-muted-color);
 }
@@ -417,7 +433,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.75rem;
+  font-size: calc(var(--pd-font-size) * 0.75);
   color: var(--p-text-muted-color);
 }
 
@@ -442,7 +458,7 @@
   display: flex;
   align-items: flex-start;
   gap: 0.375rem;
-  font-size: 0.875rem;
+  font-size: calc(var(--pd-font-size) * 0.875);
 }
 
 .pd-example-content {
@@ -495,7 +511,7 @@ button.pd-example-lead:hover {
 }
 
 .pd-example-heading {
-  font-size: 0.875rem;
+  font-size: calc(var(--pd-font-size) * 0.875);
 }
 
 .pd-collocation .pd-badge-geo {
@@ -531,14 +547,14 @@ button.pd-example-lead:hover {
 
 .pd-example-note {
   margin-left: 0.375rem;
-  font-size: 0.75rem;
+  font-size: calc(var(--pd-font-size) * 0.75);
   color: var(--p-text-muted-color);
 }
 
 /* --- rich text (user-authored HTML, inserted as-is) --- */
 
 .pd-rich-text {
-  font-size: 0.875rem;
+  font-size: calc(var(--pd-font-size) * 0.875);
   color: var(--p-text-color);
 }
 
