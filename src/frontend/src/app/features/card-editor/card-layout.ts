@@ -10,8 +10,8 @@ import {
   type PlacedField,
   type TextDirection,
 } from '../../card/card-field';
-import type { SerializedGroup } from '../../card/card-state';
-import { senseLabel } from './results-tree';
+import type { CardState, SerializedGroup } from '../../card/card-state';
+import { buildResultTrees, collectFields, senseLabel } from './results-tree';
 
 /**
  * Operations on one card side's layout - free-form groups of placed fields that the user builds by
@@ -309,6 +309,21 @@ export function restoreLayout(
   }
 
   return { layout, dropped };
+}
+
+/** A saved card rebuilt against its own stored search - both sides, and how many fields were lost. */
+export interface RestoredCard {
+  fields: ReadonlyMap<string, EntryField>;
+  front: CardLayout;
+  back: CardLayout;
+  dropped: number;
+}
+
+export function restoreCard(state: CardState): RestoredCard {
+  const fields = collectFields(buildResultTrees(state.search).values());
+  const front = restoreLayout(state.front, fields);
+  const back = restoreLayout(state.back, fields);
+  return { fields, front: front.layout, back: back.layout, dropped: front.dropped + back.dropped };
 }
 
 // --- helpers -------------------------------------------------------------------------------------

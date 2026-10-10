@@ -9,7 +9,7 @@ import {
   noteTypeName,
   parseStyleVersion,
 } from '../../card/note-type';
-import { CARD_STATE_VERSION, decodeState, type CardState } from '../../card/card-state';
+import { decodeState, readState, type CardState } from '../../card/card-state';
 import { LANGUAGES } from '../dictionary/dictionary-sources';
 
 interface NoteInfo {
@@ -52,6 +52,16 @@ export interface CardSummary {
   flag: number;
   /** False for cards with no saved editor state (added before editing existed, or edited in Anki). */
   editable: boolean;
+  /** The note's raw fields, so the list can tell whether re-rendering would change the card. */
+  fields: { front: string; back: string; state: string };
+}
+
+/** A card's freshly rendered sides, to write over what Anki has stored. */
+export interface RenderedNote {
+  noteId: number;
+  language: string;
+  front: string;
+  back: string;
 }
 
 /**
@@ -102,25 +112,7 @@ export class AnkiNotes {
       throw new Error(`Note ${noteId} was not found in Anki.`);
     }
 
-    const raw = note.fields['State']?.value ?? '';
-    if (!raw.trim()) {
-      throw new Error(
-        'This card has no saved editor data — it predates card editing, or was edited directly in Anki.',
-      );
-    }
-
-    let state: CardState;
-    try {
-      state = decodeState(raw);
-    } catch {
-      throw new Error('This card’s saved editor data is unreadable.');
-    }
-    if (state.v !== CARD_STATE_VERSION) {
-      throw new Error(
-        `This card was saved by a different app version (data v${state.v}, this build expects v${CARD_STATE_VERSION}) — re-create it to edit.`,
-      );
-    }
-
+    const state = readState(note.fields['State']?.value ?? '');
     const cards = await this.anki.invoke<CardInfo[]>('cardsInfo', { cards: note.cards });
     return {
       state,
@@ -147,17 +139,38 @@ export class AnkiNotes {
     return notes
       .map((note): CardSummary => {
         const state = note.fields['State']?.value.trim() ?? '';
-        const front = plainText(note.fields['Front']?.value ?? '').slice(0, 40);
+        const front = note.fields['Front']?.value ?? '';
         const card = cardById.get(note.cards[0] ?? -1);
         return {
           noteId: note.noteId,
-          word: savedWord(state) || front || '(untitled)',
+          word: savedWord(state) || plainText(front).slice(0, 40) || '(untitled)',
           deck: card?.deckName ?? '',
           flag: userFlag(card?.flags ?? 0),
           editable: state.length > 0,
+          fields: { front, back: note.fields['Back']?.value ?? '', state },
         };
       })
       .sort((a, b) => b.noteId - a.noteId);
+  }
+
+  /**
+   * Overwrites notes' Front/Back with a fresh render, leaving State, deck, flag and review history
+   * alone. The note types are brought up to date first, since new markup can need new styling.
+   * Notes are written one at a time; `onProgress` reports how many are done.
+   */
+  async rerender(
+    notes: readonly RenderedNote[],
+    onProgress?: (done: number) => void,
+  ): Promise<void> {
+    for (const language of new Set(notes.map((note) => note.language))) {
+      await this.ensureNoteType(noteTypeName(language));
+    }
+    for (const [index, note] of notes.entries()) {
+      await this.anki.invoke('updateNoteFields', {
+        note: { id: note.noteId, fields: { Front: note.front, Back: note.back } },
+      });
+      onProgress?.(index + 1);
+    }
   }
 
   /** Sets (or, with 0, clears) the flag on every card of a note - as Anki's Flag menu does. */

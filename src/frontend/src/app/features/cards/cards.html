@@ -25,6 +25,30 @@
     }
   </p-iconfield>
 
+  @if (rerendering(); as progress) {
+    @if ('total' in progress) {
+      <div
+        class="rounded-lg border border-surface-200 px-4 py-2.5 text-sm dark:border-surface-700"
+        role="status"
+      >
+        Re-rendering {{ progress.done }} of {{ progress.total }} cards…
+      </div>
+    }
+  } @else if (outdated().length) {
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-surface-200 px-4 py-2.5 text-sm dark:border-surface-700"
+    >
+      <span class="text-(--p-text-color)">
+        {{ outdated().length }} {{ outdated().length === 1 ? 'card was' : 'cards were' }} saved with
+        an older card layout.
+      </span>
+      <button pButton size="small" type="button" (click)="rerenderAll()">
+        <svg data-p-icon="refresh"></svg>
+        Re-render all
+      </button>
+    </div>
+  }
+
   @if (cards.error(); as error) {
     <span class="text-sm text-red-500">{{ error.message }}</span>
   } @else {
@@ -41,11 +65,12 @@
         <ul class="divide-y divide-surface-200 dark:divide-surface-700">
           @for (card of filteredCards(); track card.noteId) {
             @let flag = ankiFlag(card.flag);
-            <li [class]="flag?.row">
+            @let status = statusOf(card);
+            <li class="flex items-center" [class]="flag?.row">
               @if (card.editable) {
                 <a
                   [routerLink]="['/cards', card.noteId, 'edit']"
-                  class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                  class="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-2.5 text-sm"
                   [class]="flag ? '' : 'hover:bg-surface-100 dark:hover:bg-surface-800'"
                 >
                   <span class="flex items-center gap-2 font-medium text-(--p-text-color)">
@@ -54,11 +79,32 @@
                       <ng-container *ngTemplateOutlet="flagIcon; context: { $implicit: flag }" />
                     }
                   </span>
-                  <span class="text-xs text-(--p-text-muted-color)">{{ card.deck }}</span>
+                  <span class="text-xs text-(--p-text-muted-color)">
+                    {{ card.deck }}
+                    @if (status?.kind === 'unavailable') {
+                      <span [title]="status.reason"> · can’t re-render</span>
+                    }
+                  </span>
                 </a>
+                @if (status?.kind === 'outdated') {
+                  <button
+                    pButton
+                    text
+                    size="small"
+                    type="button"
+                    class="mr-2 shrink-0"
+                    title="Saved with an older card layout — rewrite its Front/Back with the current one"
+                    [disabled]="!!rerendering()"
+                    [loading]="isRerendering(card.noteId)"
+                    (click)="rerenderOne(card)"
+                  >
+                    <svg data-p-icon="refresh"></svg>
+                    Re-render
+                  </button>
+                }
               } @else {
                 <div
-                  class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                  class="flex flex-1 items-center justify-between gap-3 px-4 py-2.5 text-sm"
                   title="Added before card editing was supported — re-create it to edit"
                 >
                   <span class="flex items-center gap-2 text-(--p-text-muted-color)">

@@ -61,3 +61,27 @@ export function decodeState(raw: string): CardState {
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes)) as CardState;
 }
+
+/**
+ * A note's `State` field, decoded and checked to be one this build can rebuild the card from.
+ * Throws a message fit to show the user when it isn't.
+ */
+export function readState(raw: string): CardState {
+  if (!raw.trim()) {
+    throw new Error(
+      'This card has no saved editor data — it predates card editing, or was edited directly in Anki.',
+    );
+  }
+  let state: CardState;
+  try {
+    state = decodeState(raw);
+  } catch {
+    throw new Error('This card’s saved editor data is unreadable.');
+  }
+  if (state.v !== CARD_STATE_VERSION) {
+    throw new Error(
+      `This card was saved by a different app version (data v${state.v}, this build expects v${CARD_STATE_VERSION}) — re-create it to edit.`,
+    );
+  }
+  return state;
+}

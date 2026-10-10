@@ -427,15 +427,13 @@ function newSession(word: string, search: DictionarySearchResult): Session {
 }
 
 function restoreSession({ state }: LoadedCard): Session {
-  const fields = collectFields(buildResultTrees(state.search).values());
-  const front = layouts.restoreLayout(state.front, fields);
-  const back = layouts.restoreLayout(state.back, fields);
+  const { fields, front, back, dropped } = layouts.restoreCard(state);
   return {
     word: state.word,
     search: state.search,
     fields,
-    initialLayouts: { front: front.layout, back: back.layout },
-    droppedFields: front.dropped + back.dropped,
+    initialLayouts: { front, back },
+    droppedFields: dropped,
   };
 }
 
