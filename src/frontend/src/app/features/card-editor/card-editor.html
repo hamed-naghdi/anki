@@ -35,7 +35,7 @@
     @case ('ready') {
       <div class="flex flex-col gap-4 lg:flex-row">
         <aside
-          class="flex w-full flex-col gap-3 rounded-2xl p-4 ring-1 lg:w-40 lg:shrink-0 dark:ring-white/10"
+          class="flex w-full flex-col gap-3 rounded-2xl p-4 ring-1 lg:w-32 lg:shrink-0 dark:ring-white/10"
         >
           <span class="text-xs font-semibold tracking-wide text-(--p-text-muted-color) uppercase"
             >Sources</span
@@ -50,7 +50,11 @@
           }
         </aside>
 
-        <p-tabs class="flex-1" [value]="store.activeSide()" (valueChange)="selectSide($event)">
+        <p-tabs
+          class="min-w-0 flex-1"
+          [value]="store.activeSide()"
+          (valueChange)="selectSide($event)"
+        >
           <p-tablist>
             @for (side of sides; track side) {
               <p-tab [value]="side">{{ side === 'front' ? 'Front' : 'Back' }}</p-tab>
@@ -59,9 +63,12 @@
           <p-tabpanels>
             @for (side of sides; track side) {
               <p-tabpanel [value]="side">
+                <!-- results | items | preview at xl, a third each - items and preview stick to the
+                     top while the results scroll. -->
                 <div class="flex flex-col gap-4 xl:flex-row">
                   <app-results-panel [side]="side" />
                   <app-layout-panel [side]="side" />
+                  <app-preview-panel [side]="side" />
                 </div>
               </p-tabpanel>
             }

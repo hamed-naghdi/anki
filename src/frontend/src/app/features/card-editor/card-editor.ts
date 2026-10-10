@@ -6,6 +6,7 @@ import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { CARD_SIDES, CardEditorStore, type CardSide } from './card-editor.store';
 import { EditorToolbar } from './editor-toolbar/editor-toolbar';
 import { LayoutPanel } from './layout-panel/layout-panel';
+import { PreviewPanel } from './preview-panel/preview-panel';
 import { ResultsPanel } from './results-panel/results-panel';
 
 /**
@@ -26,6 +27,7 @@ import { ResultsPanel } from './results-panel/results-panel';
     EditorToolbar,
     ResultsPanel,
     LayoutPanel,
+    PreviewPanel,
   ],
   providers: [CardEditorStore],
   templateUrl: './card-editor.html',

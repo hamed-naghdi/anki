@@ -1,7 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { Desktop } from '@primeicons/angular/desktop';
 import { GripVertical } from '@primeicons/angular/grip-vertical';
-import { Mobile } from '@primeicons/angular/mobile';
 import { Plus } from '@primeicons/angular/plus';
 import { Times } from '@primeicons/angular/times';
 import { TreeDragDropService, type TreeNode } from 'primeng/api';
@@ -16,18 +14,13 @@ import {
   type LayoutGroup,
   type RichTextField,
 } from '../../../card/card-field';
-import { CardHtml } from '../../../card/card-html';
-import { renderCardSide } from '../../../card/render-card';
 import { fromTreeNodes, groupLabel, isValidDrop, toTreeNodes } from '../card-layout';
-import { CardEditorStore, type CardSide, type PreviewDevice } from '../card-editor.store';
+import { CardEditorStore, type CardSide } from '../card-editor.store';
 
-/**
- * One side's card: a live preview (the exact HTML Anki will store) and the drag-and-drop list its
- * groups and fields are arranged in.
- */
+/** One side's card as a drag-and-drop list of the groups and fields it's arranged in. */
 @Component({
   selector: 'app-layout-panel',
-  imports: [Tree, ButtonDirective, Textarea, CardHtml, Desktop, GripVertical, Mobile, Plus, Times],
+  imports: [Tree, ButtonDirective, Textarea, GripVertical, Plus, Times],
   templateUrl: './layout-panel.html',
   // p-tree's draggableNodes/droppableNodes silently do nothing without a TreeDragDropService in
   // scope - PrimeNG injects it as optional, but drag-and-drop can't work without it.
@@ -41,12 +34,13 @@ import { CardEditorStore, type CardSide, type PreviewDevice } from '../card-edit
       min-width: 0;
     }
   `,
-  // Side by side with the results (xl), it sticks to the top of the viewport so the preview stays
-  // in view while the results grow, scrolling on its own if it's taller than the screen. The divider
-  // between the two is the results panel's border, so it runs the full height of the column.
+  // The middle column (xl). The host stretches to the row's full height so its divider runs the
+  // whole way down; the content inside (layout-panel.html) sticks to the top of the viewport, so the
+  // items stay in view while the results grow, scrolling on its own if taller than the screen. The
+  // padding is on the host, like the other two columns', so flex-1 gives all three the same width.
   host: {
     class:
-      'flex flex-col gap-4 border-t border-surface-200 p-4 xl:sticky xl:top-0 xl:max-h-dvh xl:w-2/5 xl:self-start xl:overflow-y-auto xl:border-t-0 dark:border-surface-700',
+      'min-w-0 border-t border-surface-200 p-4 xl:flex-1 xl:border-t-0 xl:border-r dark:border-surface-700',
   },
 })
 export class LayoutPanel {
@@ -54,12 +48,6 @@ export class LayoutPanel {
 
   protected readonly store = inject(CardEditorStore);
   protected readonly state = computed(() => this.store.sides[this.side()]);
-
-  protected readonly preview = computed(() => renderCardSide(this.state().layout()));
-  protected readonly devices: { value: PreviewDevice; label: string }[] = [
-    { value: 'desktop', label: 'Desktop' },
-    { value: 'phone', label: 'Phone' },
-  ];
 
   /**
    * The layout as p-tree nodes - a throwaway view rebuilt from the layout on every change. A drop
