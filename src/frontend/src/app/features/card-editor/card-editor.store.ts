@@ -132,8 +132,13 @@ export class CardEditorStore {
 
   readonly query = linkedSignal<SearchQuery>(() => {
     const state = valueOf(this.savedCard)?.state;
+    // A text-only card saved no sources - fall back to all of its language's.
     return state
-      ? { language: state.language, word: '', sources: state.sources }
+      ? {
+          language: state.language,
+          word: '',
+          sources: state.sources.length ? state.sources : sourceKeys(state.language),
+        }
       : { language: DEFAULT_LANGUAGE, word: '', sources: sourceKeys(DEFAULT_LANGUAGE) };
   });
 
@@ -141,6 +146,8 @@ export class CardEditorStore {
   readonly languageLabel = computed(() => languageLabel(this.query().language));
 
   private readonly submitted = signal<{ word: string; sources: string[] } | null>(null);
+  /** A card started without a search - only text blocks, no dictionary results. */
+  private readonly blank = signal(false);
 
   private readonly lookup = httpResource<DictionarySearchResult>(() => {
     const search = this.submitted();
@@ -158,8 +165,16 @@ export class CardEditorStore {
     const available = sourceKeys(language);
     const picked = sources.filter((source) => available.includes(source));
     this.submitted.set({ word: trimmed, sources: picked.length ? picked : available });
+    this.blank.set(false);
     this.query.update((query) => ({ ...query, word: '' }));
     // A new search starts a new card, so it starts unflagged.
+    this.flag.set(0);
+  }
+
+  /** Starts a card with no search behind it, to build from text blocks alone. */
+  startBlank(): void {
+    this.submitted.set(null);
+    this.blank.set(true);
     this.flag.set(0);
   }
 
@@ -175,10 +190,16 @@ export class CardEditorStore {
       const card = valueOf(this.savedCard);
       return card ? restoreSession(card) : null;
     }
+    if (this.blank()) {
+      return newSession('', { word: '', results: [] });
+    }
     const search = valueOf(this.lookup);
     const submitted = this.submitted();
     return search && submitted ? newSession(submitted.word, search) : null;
   });
+
+  /** No word behind this card - started blank, or a saved one that was. */
+  readonly isTextOnly = computed(() => this.session()?.word === '');
 
   readonly word = computed(() => this.session()?.word ?? this.submitted()?.word ?? '');
   readonly droppedFields = computed(() => this.session()?.droppedFields ?? 0);
@@ -270,6 +291,11 @@ export class CardEditorStore {
   addRichText(side: CardSide, direction: TextDirection): void {
     const id = this.nextId();
     this.updateLayout(side, (layout) => layouts.addRichText(layout, id, direction));
+    // Open the new block's group, so it can be typed into straight away.
+    const added = this.sides[side].layout().at(-1)?.key;
+    if (added) {
+      this.sides[side].expandedGroups.update((keys) => new Set(keys).add(added));
+    }
   }
 
   /** Exchanges everything placed on Front and Back - for when a side was built on the wrong tab. */

@@ -1,6 +1,8 @@
 import { Component, inject } from '@angular/core';
 import { FormField, form } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
+import { File as FileIcon } from '@primeicons/angular/file';
+import { ButtonDirective } from 'primeng/button';
 import { Checkbox } from 'primeng/checkbox';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from 'primeng/tabs';
 import { CARD_SIDES, CardEditorStore, type CardSide } from './card-editor.store';
@@ -18,6 +20,8 @@ import { ResultsPanel } from './results-panel/results-panel';
   imports: [
     RouterLink,
     FormField,
+    ButtonDirective,
+    FileIcon,
     Checkbox,
     Tabs,
     TabList,

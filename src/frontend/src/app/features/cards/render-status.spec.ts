@@ -78,6 +78,35 @@ describe('renderStatus', () => {
     });
   });
 
+  it('rebuilds a text-only card, saved with no search behind it', () => {
+    const textOnly: CardState = {
+      v: 1,
+      language: 'en',
+      word: '',
+      sources: [],
+      search: { word: '', results: [] },
+      front: [
+        {
+          key: 'g1',
+          fields: [{ t: 'rich', instanceKey: 'r1', isCopy: false, html: 'سلام', direction: 'rtl' }],
+        },
+      ],
+      back: [
+        {
+          key: 'g2',
+          fields: [
+            { t: 'rich', instanceKey: 'r2', isCopy: false, html: 'hello', direction: 'ltr' },
+          ],
+        },
+      ],
+    };
+    const card = restoreCard(textOnly);
+    expect(card.dropped).toBe(0);
+    const [front, back] = [renderCardSide(card.front), renderCardSide(card.back)];
+    expect(front).toContain('سلام');
+    expect(renderStatus(summary(front, back, textOnly))).toEqual({ kind: 'current' });
+  });
+
   it('is unavailable without saved state, or with state from another version', () => {
     expect(renderStatus(summary(front, back, ''))).toMatchObject({ kind: 'unavailable' });
     expect(renderStatus(summary(front, back, { ...state, v: 99 }))).toMatchObject({

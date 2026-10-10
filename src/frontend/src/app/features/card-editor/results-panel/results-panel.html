@@ -1,5 +1,7 @@
 <div class="flex items-center justify-between gap-3">
-  <h2 class="font-serif text-xl text-(--p-text-color)">{{ store.word() }}</h2>
+  <h2 class="font-serif text-xl text-(--p-text-color)">
+    {{ store.isTextOnly() ? 'Text-only card' : store.word() }}
+  </h2>
   @if (store.visibleSources().length) {
     <button pButton text size="small" type="button" (click)="toggleExpandAll()">
       {{ allExpanded() ? 'Collapse all' : 'Expand all' }}
@@ -51,6 +53,11 @@
       </p-accordion-panel>
     }
   </p-accordion>
+} @else if (store.isTextOnly()) {
+  <p class="text-sm text-(--p-text-muted-color)">
+    No dictionary results on this card — build it from text blocks with “Add LTR text” and “Add RTL
+    text” in the items column.
+  </p>
 } @else {
   <p class="text-sm text-(--p-text-muted-color)">
     Select at least one source to see its results here.

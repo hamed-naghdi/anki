@@ -2,7 +2,9 @@
   <nav class="flex items-center gap-2 text-sm">
     <a routerLink="/cards" class="text-(--p-text-muted-color) hover:underline">Cards</a>
     <span class="text-(--p-text-muted-color)">/</span>
-    <span class="font-medium">Editing “{{ store.word() }}”</span>
+    <span class="font-medium">{{
+      store.isTextOnly() ? 'Editing a text-only card' : 'Editing “' + store.word() + '”'
+    }}</span>
   </nav>
 }
 
@@ -16,6 +18,10 @@
         <p class="mt-1 text-sm text-(--p-text-muted-color)">
           Definitions from the selected dictionaries will appear here.
         </p>
+        <button pButton text size="small" type="button" class="mt-4" (click)="store.startBlank()">
+          <svg data-p-icon="file" class="size-3.5"></svg>
+          Or start a text-only card
+        </button>
       </div>
     }
     @case ('loading') {
@@ -46,7 +52,9 @@
               {{ source }}
             </label>
           } @empty {
-            <p class="text-sm text-(--p-text-muted-color)">No sources returned results.</p>
+            <p class="text-sm text-(--p-text-muted-color)">
+              {{ store.isTextOnly() ? 'None — a text-only card.' : 'No sources returned results.' }}
+            </p>
           }
         </aside>
 
