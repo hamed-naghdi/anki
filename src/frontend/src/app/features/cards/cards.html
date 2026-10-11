@@ -113,6 +113,7 @@
               @if (card.editable) {
                 <a
                   [routerLink]="['/cards', card.noteId, 'edit']"
+                  [state]="fromCardList"
                   class="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-2.5 text-sm"
                   [class]="flag ? '' : 'hover:bg-surface-100 dark:hover:bg-surface-800'"
                 >

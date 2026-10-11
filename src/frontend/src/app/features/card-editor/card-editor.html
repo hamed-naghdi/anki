@@ -1,5 +1,17 @@
 @if (store.isEditing) {
   <nav class="flex items-center gap-2 text-sm">
+    <button
+      pButton
+      text
+      size="small"
+      type="button"
+      class="-ml-2"
+      title="Back to the card list"
+      (click)="back()"
+    >
+      <svg data-p-icon="arrow-left"></svg>
+      Back
+    </button>
     <a routerLink="/cards" class="text-(--p-text-muted-color) hover:underline">Cards</a>
     <span class="text-(--p-text-muted-color)">/</span>
     <span class="font-medium">{{

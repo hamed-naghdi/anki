@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, resource, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FormField, form } from '@angular/forms/signals';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Flag } from '@primeicons/angular/flag';
 import { FlagFill } from '@primeicons/angular/flag-fill';
 import { Plus } from '@primeicons/angular/plus';
@@ -21,6 +21,7 @@ import { FLAG_OPTIONS, ankiFlag } from '../../core/anki/anki-flags';
 import { AnkiNotes, type CardSummary, type RenderedNote } from '../../core/anki/anki-notes';
 import { valueOf } from '../../core/resource';
 import { Toasts } from '../../core/toasts';
+import { CardFilters, FROM_CARD_LIST, NO_FILTER } from './card-filters';
 import { renderStatus, type RenderStatus } from './render-status';
 
 /** Every dictionary card in Anki, newest first, each opening in the editor. */
@@ -51,18 +52,22 @@ export class Cards {
   private readonly toasts = inject(Toasts);
 
   protected readonly ankiFlag = ankiFlag;
+  protected readonly fromCardList = FROM_CARD_LIST;
 
   protected readonly cards = resource({ loader: () => this.notes.list() });
 
   protected readonly flagOptions = [...FLAG_OPTIONS];
 
-  /** `flag: null` = any flag; `deck: null` = every deck (a deck includes its subdecks, as in Anki). */
-  protected readonly filter = signal<{ term: string; flag: number | null; deck: string | null }>({
-    term: '',
-    flag: null,
-    deck: null,
-  });
+  /** Kept app-wide (see CardFilters). A deck includes its subdecks, as in Anki. */
+  protected readonly filter = inject(CardFilters).filter;
   protected readonly filterForm = form(this.filter);
+
+  constructor() {
+    // Only going back (history pop) returns to the filtered list; any other arrival starts fresh.
+    if (inject(Router).currentNavigation()?.trigger !== 'popstate') {
+      this.filter.set(NO_FILTER);
+    }
+  }
 
   /** Only the decks that hold cards (plus their parents), so every choice matches something. */
   protected readonly deckTree = computed(() =>
@@ -71,15 +76,18 @@ export class Cards {
   protected readonly selectedDeckNode = computed(() =>
     findNode(this.deckTree(), this.filter().deck),
   );
+  /** The remembered deck, unless no card is in it any more (moved or deleted since). */
+  private readonly deck = computed(() => this.selectedDeckNode()?.key ?? null);
 
   protected readonly isFiltered = computed(() => {
-    const { term, flag, deck } = this.filter();
-    return !!term.trim() || flag !== null || deck !== null;
+    const { term, flag } = this.filter();
+    return !!term.trim() || flag !== null || this.deck() !== null;
   });
 
   protected readonly filteredCards = computed(() => {
     const cards = valueOf(this.cards) ?? [];
-    const { flag, deck } = this.filter();
+    const { flag } = this.filter();
+    const deck = this.deck();
     const term = this.filter().term.trim().toLowerCase();
     return cards.filter(
       (card) =>
@@ -102,7 +110,7 @@ export class Cards {
   }
 
   protected clearFilters(): void {
-    this.filter.set({ term: '', flag: null, deck: null });
+    this.filter.set(NO_FILTER);
   }
 
   // --- re-rendering: rewriting a card's Front/Back from its State with the current layout code ---
