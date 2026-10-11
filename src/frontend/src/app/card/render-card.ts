@@ -178,7 +178,7 @@ export function renderField(field: CardField, options: RenderFieldOptions = {}):
     case 'homographNumber':
       return `<span class="pd-text">${esc(entry.homographNumber ?? '')}</span>`;
     case 'hyphenation':
-      return `<span class="pd-hyphenation">${esc(entry.hyphenation ?? '')}</span>`;
+      return `<span class="pd-text">${esc(entry.hyphenation ?? '')}</span>`;
     case 'grammar':
       return badge(entry.grammar, 'outline');
     case 'pronunciation-british':
@@ -278,6 +278,10 @@ function renderInlineItem(field: CardField): string {
   switch (field.kind) {
     case 'headword':
       inner = `<h2 class="pd-headword">${esc(field.entry.headword)}</h2>`;
+      break;
+    // Styled exactly like the headword - it's the same word, printed with its pattern/syllables.
+    case 'hyphenation':
+      inner = `<h2 class="pd-headword">${esc(field.entry.hyphenation ?? '')}</h2>`;
       break;
     case 'homographNumber':
       inner = `<sup class="pd-homograph">${esc(field.entry.homographNumber ?? '')}</sup>`;
