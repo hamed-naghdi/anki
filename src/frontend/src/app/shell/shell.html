@@ -85,7 +85,7 @@
 
 <!-- The app's one toast outlet (see core/toasts.ts). A custom template so a toast can carry action
      buttons, e.g. "Show in Anki" after adding a card. -->
-<p-toast position="top-right">
+<p-toast position="bottom-left">
   <ng-template #message let-message let-close="closeFn">
     <div class="flex min-w-0 flex-1 flex-col gap-1">
       <span class="font-semibold">{{ message.summary }}</span>
