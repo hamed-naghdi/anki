@@ -167,8 +167,9 @@ export class CardEditorStore {
     this.submitted.set({ word: trimmed, sources: picked.length ? picked : available });
     this.blank.set(false);
     this.query.update((query) => ({ ...query, word: '' }));
-    // A new search starts a new card, so it starts unflagged.
+    // A new search starts a new card, so it starts unflagged and on its front.
     this.flag.set(0);
+    this.activeSide.set('front');
   }
 
   /** Starts a card with no search behind it, to build from text blocks alone. */
@@ -176,6 +177,7 @@ export class CardEditorStore {
     this.submitted.set(null);
     this.blank.set(true);
     this.flag.set(0);
+    this.activeSide.set('front');
   }
 
   clearSearch(): void {
