@@ -1,17 +1,23 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, resource, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { FormField, form } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
+import { Flag } from '@primeicons/angular/flag';
 import { FlagFill } from '@primeicons/angular/flag-fill';
 import { Plus } from '@primeicons/angular/plus';
 import { Refresh } from '@primeicons/angular/refresh';
 import { Search } from '@primeicons/angular/search';
 import { Times } from '@primeicons/angular/times';
+import type { TreeNode } from 'primeng/api';
 import { ButtonDirective } from 'primeng/button';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
-import { ankiFlag } from '../../core/anki/anki-flags';
+import { Select } from 'primeng/select';
+import { TreeSelect } from 'primeng/treeselect';
+import { buildDeckTree, findNode } from '../../core/anki/anki-decks';
+import { FLAG_OPTIONS, ankiFlag } from '../../core/anki/anki-flags';
 import { AnkiNotes, type CardSummary, type RenderedNote } from '../../core/anki/anki-notes';
 import { valueOf } from '../../core/resource';
 import { Toasts } from '../../core/toasts';
@@ -23,11 +29,15 @@ import { renderStatus, type RenderStatus } from './render-status';
   imports: [
     NgTemplateOutlet,
     RouterLink,
+    FormsModule,
     FormField,
     ButtonDirective,
     IconField,
     InputIcon,
     InputText,
+    Select,
+    TreeSelect,
+    Flag,
     FlagFill,
     Plus,
     Refresh,
@@ -44,22 +54,55 @@ export class Cards {
 
   protected readonly cards = resource({ loader: () => this.notes.list() });
 
-  protected readonly filter = signal({ term: '' });
+  protected readonly flagOptions = [...FLAG_OPTIONS];
+
+  /** `flag: null` = any flag; `deck: null` = every deck (a deck includes its subdecks, as in Anki). */
+  protected readonly filter = signal<{ term: string; flag: number | null; deck: string | null }>({
+    term: '',
+    flag: null,
+    deck: null,
+  });
   protected readonly filterForm = form(this.filter);
+
+  /** Only the decks that hold cards (plus their parents), so every choice matches something. */
+  protected readonly deckTree = computed(() =>
+    buildDeckTree([...new Set((valueOf(this.cards) ?? []).map((card) => card.deck))]),
+  );
+  protected readonly selectedDeckNode = computed(() =>
+    findNode(this.deckTree(), this.filter().deck),
+  );
+
+  protected readonly isFiltered = computed(() => {
+    const { term, flag, deck } = this.filter();
+    return !!term.trim() || flag !== null || deck !== null;
+  });
 
   protected readonly filteredCards = computed(() => {
     const cards = valueOf(this.cards) ?? [];
+    const { flag, deck } = this.filter();
     const term = this.filter().term.trim().toLowerCase();
-    return term
-      ? cards.filter(
-          (card) =>
-            card.word.toLowerCase().includes(term) || card.deck.toLowerCase().includes(term),
-        )
-      : cards;
+    return cards.filter(
+      (card) =>
+        (flag === null || card.flag === flag) &&
+        (deck === null || card.deck === deck || card.deck.startsWith(`${deck}::`)) &&
+        (!term ||
+          card.word.toLowerCase().includes(term) ||
+          card.deck.toLowerCase().includes(term)),
+    );
   });
 
-  protected clearFilter(): void {
-    this.filter.set({ term: '' });
+  // The deck picker uses ngModel, not Signal Forms: its value is a PrimeNG tree node, whose
+  // `parent` link would send Signal Forms' recursive walk round in circles (see DeckPicker).
+  protected selectDeck(node: TreeNode | null): void {
+    this.filter.update((filter) => ({ ...filter, deck: node?.key ?? null }));
+  }
+
+  protected clearTerm(): void {
+    this.filter.update((filter) => ({ ...filter, term: '' }));
+  }
+
+  protected clearFilters(): void {
+    this.filter.set({ term: '', flag: null, deck: null });
   }
 
   // --- re-rendering: rewriting a card's Front/Back from its State with the current layout code ---

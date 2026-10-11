@@ -89,7 +89,7 @@ function pruneEmptyChildren(nodes: TreeNode[]): void {
   }
 }
 
-function findNode<T>(nodes: readonly TreeNode<T>[], key: string | null): TreeNode<T> | null {
+export function findNode<T>(nodes: readonly TreeNode<T>[], key: string | null): TreeNode<T> | null {
   for (const node of key ? nodes : []) {
     if (node.key === key) {
       return node;
