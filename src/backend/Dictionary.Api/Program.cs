@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Dictionary.Api.Http;
+using Dictionary.Api.Http.Cloudflare;
 using Dictionary.Api.Models;
 using Dictionary.Api.Providers;
 using Dictionary.Api.Providers.Longman;
@@ -42,15 +43,31 @@ builder.Services
     })
     .AddHttpMessageHandler<PoliteHttpMessageHandler>();
 
-// Oxford sits behind Cloudflare's JavaScript bot challenge, which plain HttpClient can't pass, so its
-// pages are loaded in a real browser instead. Singleton: the browser (and the clearance cookie it
-// earns) is shared by every lookup.
-builder.Services.AddKeyedSingleton<IHtmlPageFetcher>(OxfordDictionarySource.SourceKey, (sp, _) => new BrowserPageFetcher(
-    new Uri("https://www.oxfordlearnersdictionaries.com/"),
-    builder.Configuration.GetSection("Oxford:Browser").Get<BrowserPageFetcherOptions>() ?? new BrowserPageFetcherOptions(),
-    sp.GetRequiredService<ILogger<BrowserPageFetcher>>()));
-builder.Services.AddScoped(sp => new OxfordDictionaryProvider(
-    sp.GetRequiredKeyedService<IHtmlPageFetcher>(OxfordDictionarySource.SourceKey)));
+// Oxford sits behind Cloudflare's JavaScript bot challenge, which plain HttpClient can't pass. A real
+// browser clears it once; the cookie it earns then lets plain HTTP through until it expires (see
+// CloudflareClearanceHandler). Oxford is the only Cloudflare site so far, hence unkeyed singletons.
+var oxfordAddress = new Uri("https://www.oxfordlearnersdictionaries.com/");
+var oxfordCloudflare = builder.Configuration.GetSection("Oxford:Cloudflare").Get<CloudflareOptions>() ?? new CloudflareOptions();
+builder.Services.AddSingleton<ICloudflareBrowser>(sp => new CloudflareBrowser(
+    oxfordAddress, oxfordCloudflare, sp.GetRequiredService<ILogger<CloudflareBrowser>>()));
+builder.Services.AddSingleton(sp => new CloudflareClearanceStore(
+    oxfordAddress,
+    sp.GetRequiredService<ICloudflareBrowser>(),
+    oxfordCloudflare.CachePath,
+    sp.GetRequiredService<ILogger<CloudflareClearanceStore>>()));
+builder.Services.AddTransient<CloudflareClearanceHandler>();
+builder.Services
+    .AddHttpClient<OxfordDictionaryProvider>(client =>
+    {
+        client.BaseAddress = oxfordAddress;
+        // Room for a challenge solve (browser launch + challenge) on top of the polite delay.
+        client.Timeout = TimeSpan.FromSeconds(60);
+    })
+    // Cookies come from CloudflareClearanceStore, which outlives the handlers the factory recycles.
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false })
+    .AddHttpMessageHandler<PoliteHttpMessageHandler>()
+    // Innermost, so its User-Agent (the one the clearance was earned with) wins over the rotating one.
+    .AddHttpMessageHandler<CloudflareClearanceHandler>();
 
 builder.Services.AddScoped<IDictionaryProvider<LongmanDictionaryEntry>>(sp => sp.GetRequiredService<LongmanDictionaryProvider>());
 builder.Services.AddScoped<IDictionaryProvider<OxfordDictionaryEntry>>(sp => sp.GetRequiredService<OxfordDictionaryProvider>());

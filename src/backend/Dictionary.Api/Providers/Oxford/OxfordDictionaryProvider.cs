@@ -4,7 +4,7 @@ using Dictionary.Api.Providers.Oxford.Models;
 
 namespace Dictionary.Api.Providers.Oxford;
 
-public sealed class OxfordDictionaryProvider(IHtmlPageFetcher pageFetcher) 
+public sealed class OxfordDictionaryProvider(HttpClient httpClient) 
     : IDictionaryProvider<OxfordDictionaryEntry>
 {
     /// <summary>Upper bound on extra homograph pages fetched per lookup - "tear" needs 3, but a runaway "Nearby words" match must never turn one lookup into a crawl.</summary>
@@ -21,7 +21,7 @@ public sealed class OxfordDictionaryProvider(IHtmlPageFetcher pageFetcher)
 
         try
         {
-            var html = await pageFetcher.GetHtmlAsync(requestUri, cancellationToken);
+            var html = await httpClient.GetStringAsync(requestUri, cancellationToken);
             var result = OxfordHtmlParser.Parse(word, html);
             if (result.Error is not null)
             {
@@ -85,7 +85,11 @@ public sealed class OxfordDictionaryProvider(IHtmlPageFetcher pageFetcher)
     {
         try
         {
-            return await pageFetcher.GetHtmlAsync(url, cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Options.Set(PoliteHttpMessageHandler.FollowUpRequest, true);
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync(cancellationToken);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {

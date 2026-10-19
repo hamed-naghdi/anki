@@ -6,6 +6,15 @@ namespace Dictionary.Api.Http;
 /// </summary>
 public sealed class PoliteHttpMessageHandler(int minDelayMs = 2000, int maxDelayMs = 5000) : DelegatingHandler
 {
+    /// <summary>
+    /// Marks a request as another page of the same lookup (e.g. a further homograph), which a person
+    /// would click through quickly too - so it waits a shorter gap than a new lookup does.
+    /// </summary>
+    public static readonly HttpRequestOptionsKey<bool> FollowUpRequest = new(nameof(FollowUpRequest));
+
+    private const int FollowUpMinDelayMs = 500;
+    private const int FollowUpMaxDelayMs = 1500;
+
     private static readonly string[] UserAgents =
     [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
@@ -26,7 +35,8 @@ public sealed class PoliteHttpMessageHandler(int minDelayMs = 2000, int maxDelay
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        await WaitForNextRequestAsync(cancellationToken);
+        var isFollowUp = request.Options.TryGetValue(FollowUpRequest, out var followUp) && followUp;
+        await WaitForNextRequestAsync(isFollowUp, cancellationToken);
 
         request.Headers.UserAgent.Clear();
         request.Headers.TryAddWithoutValidation("User-Agent", Pick(UserAgents));
@@ -37,9 +47,11 @@ public sealed class PoliteHttpMessageHandler(int minDelayMs = 2000, int maxDelay
         return await base.SendAsync(request, cancellationToken);
     }
 
-    private async Task WaitForNextRequestAsync(CancellationToken cancellationToken)
+    private async Task WaitForNextRequestAsync(bool isFollowUp, CancellationToken cancellationToken)
     {
-        var randomDelay = TimeSpan.FromMilliseconds(Random.Shared.Next(minDelayMs, maxDelayMs + 1));
+        var randomDelay = TimeSpan.FromMilliseconds(isFollowUp
+            ? Random.Shared.Next(FollowUpMinDelayMs, FollowUpMaxDelayMs + 1)
+            : Random.Shared.Next(minDelayMs, maxDelayMs + 1));
         var elapsedSinceLastRequest = DateTimeOffset.UtcNow - _lastRequestAt;
         var delayNeeded = randomDelay - elapsedSinceLastRequest;
 
