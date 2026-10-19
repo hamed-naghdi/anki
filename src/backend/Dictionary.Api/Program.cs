@@ -42,13 +42,15 @@ builder.Services
     })
     .AddHttpMessageHandler<PoliteHttpMessageHandler>();
 
-builder.Services
-    .AddHttpClient<OxfordDictionaryProvider>(client =>
-    {
-        client.BaseAddress = new Uri("https://www.oxfordlearnersdictionaries.com/");
-        client.Timeout = TimeSpan.FromSeconds(15);
-    })
-    .AddHttpMessageHandler<PoliteHttpMessageHandler>();
+// Oxford sits behind Cloudflare's JavaScript bot challenge, which plain HttpClient can't pass, so its
+// pages are loaded in a real browser instead. Singleton: the browser (and the clearance cookie it
+// earns) is shared by every lookup.
+builder.Services.AddKeyedSingleton<IHtmlPageFetcher>(OxfordDictionarySource.SourceKey, (sp, _) => new BrowserPageFetcher(
+    new Uri("https://www.oxfordlearnersdictionaries.com/"),
+    builder.Configuration.GetSection("Oxford:Browser").Get<BrowserPageFetcherOptions>() ?? new BrowserPageFetcherOptions(),
+    sp.GetRequiredService<ILogger<BrowserPageFetcher>>()));
+builder.Services.AddScoped(sp => new OxfordDictionaryProvider(
+    sp.GetRequiredKeyedService<IHtmlPageFetcher>(OxfordDictionarySource.SourceKey)));
 
 builder.Services.AddScoped<IDictionaryProvider<LongmanDictionaryEntry>>(sp => sp.GetRequiredService<LongmanDictionaryProvider>());
 builder.Services.AddScoped<IDictionaryProvider<OxfordDictionaryEntry>>(sp => sp.GetRequiredService<OxfordDictionaryProvider>());

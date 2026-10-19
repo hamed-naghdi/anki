@@ -1,4 +1,5 @@
 using System.Net;
+using Dictionary.Api.Http;
 using Dictionary.Api.Providers.Oxford;
 
 namespace Dictionary.Api.Tests.Providers;
@@ -37,7 +38,8 @@ public class OxfordDictionaryProviderTests
             ["/definition/english/tear2_1"] = "oxford-tear2-verb.html",
             ["/definition/english/tear2_2"] = "oxford-tear2-noun.html",
         });
-        var provider = new OxfordDictionaryProvider(new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) });
+        var provider = new OxfordDictionaryProvider(
+            new HttpClientPageFetcher(new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) }));
 
         var result = await provider.LookupAsync("tear");
 
