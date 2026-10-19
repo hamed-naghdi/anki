@@ -51,9 +51,10 @@ describe('renderCardSide', () => {
     ).toHaveLength(2);
   });
 
-  it('prefixes a nested example placed without its header with the group phrase', () => {
+  it('shows only the sentence for a nested example placed without its header', () => {
     const html = renderCardSide([{ key: 'g', fields: [place('Longman-0-sense-0-example-1-0')] }]);
-    expect(html).toContain('<span class="pd-example-pattern">make somebody something:</span>');
+    expect(html).not.toContain('make somebody something');
+    expect(html).not.toContain('pd-example-pattern');
     expect(html).not.toContain('pd-example-nested');
   });
 
@@ -85,11 +86,12 @@ describe('renderCardSide', () => {
     );
   });
 
-  it('prefixes a collocation example placed without its phrase', () => {
+  it('shows only the sentence for a collocation example placed without its collocation', () => {
     const html = renderCardSide([
       { key: 'g', fields: [place('Longman-0-collocation-0-0-0-example-0')] },
     ]);
-    expect(html).toContain('<span class="pd-example-pattern">book an appointment:</span>');
+    expect(html).not.toContain('book an appointment');
+    expect(html).not.toContain('pd-example-pattern');
     expect(html).not.toContain('pd-example-nested');
   });
 

@@ -12,7 +12,6 @@ import {
   exampleGroupOf,
   exampleGroupPhrase,
   exampleOf,
-  examplePrefix,
   formatIpa,
   inflectionOf,
   isFrequencyDots,
@@ -247,7 +246,9 @@ export function renderField(field: CardField, options: RenderFieldOptions = {}):
       const example = exampleOf(field);
       if (!example) return '';
       const { underHeader = false, indent = underHeader } = options;
-      const prefix = examplePrefix(field, underHeader);
+      // Only the example's own pattern (Oxford's) - a nested example placed without its header shows
+      // just itself, never the header's phrase the user chose to leave out.
+      const prefix = example.pattern || null;
       return exampleLine(example.segments, example.audioUrl, prefix, example.note, indent);
     }
     case 'collocation': {
@@ -258,9 +259,8 @@ export function renderField(field: CardField, options: RenderFieldOptions = {}):
       const sentence = collocationExampleOf(field);
       if (sentence === null) return '';
       const { underHeader = false, indent = underHeader } = options;
-      // Away from its own collocation, the sentence keeps that phrase as its lead-in.
-      const prefix = underHeader ? null : (collocationOf(field)?.phrase ?? null);
-      return exampleLine([{ text: sentence }], null, prefix, null, indent);
+      // Just the sentence - the collocation phrase only shows when that field itself is placed.
+      return exampleLine([{ text: sentence }], null, null, null, indent);
     }
   }
 }

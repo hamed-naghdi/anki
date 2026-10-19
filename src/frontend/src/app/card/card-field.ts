@@ -186,19 +186,6 @@ export function isNestedExample(fields: readonly CardField[], field: CardField):
   );
 }
 
-/**
- * The "pattern:" lead-in before an example's sentence: Oxford's own per-example pattern, or - for a
- * nested Longman example shown away from its header - that group's phrase, so the example keeps
- * the context it illustrates.
- */
-export function examplePrefix(field: EntryField, underHeader: boolean): string | null {
-  const own = exampleOf(field)?.pattern;
-  if (own) return own;
-  if (underHeader || field.subExampleIndex === undefined) return null;
-  const group = exampleGroupOf(field);
-  return group ? exampleGroupPhrase(group) || null : null;
-}
-
 /** The bold phrase a group of examples hangs off - its collocation or its grammar pattern. */
 export function exampleGroupPhrase(group: ExampleGroup): string {
   return group.sourceType === 'LongmanCollectionExample' ? group.collection : group.pattern;
