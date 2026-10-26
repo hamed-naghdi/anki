@@ -176,6 +176,29 @@ public class LongmanHtmlParserTests
     }
 
     [Fact]
+    public void Parse_YardFixture_ExtractsRegionalEquivalentAsSynonym()
+    {
+        var html = LoadFixture("longman-yard.html");
+
+        var result = LongmanHtmlParser.Parse("yard", html);
+
+        // "SYN garden British English" sits in a .BREQUIV wrapper, not a .SYN one.
+        var garden = result.Entries.SelectMany(entry => entry.Senses).Single(sense => sense.Signpost == "garden");
+        Assert.Equal(["garden"], garden.Synonyms);
+    }
+
+    [Fact]
+    public void Parse_LookUpFixture_SplitsSynonymListIntoCleanWords()
+    {
+        var html = LoadFixture("longman-look-up.html");
+
+        var result = LongmanHtmlParser.Parse("look up", html);
+
+        // Only the first word carries the "SYN" label; the rest follow as ", get better" siblings.
+        Assert.Equal(["improve", "get better"], result.Entries[0].Senses[0].Synonyms);
+    }
+
+    [Fact]
     public void Parse_BigFixture_ExtractsInflectionForms()
     {
         var html = LoadFixture("longman-big.html");

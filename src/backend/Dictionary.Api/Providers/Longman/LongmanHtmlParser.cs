@@ -129,8 +129,8 @@ public static class LongmanHtmlParser
             Register = ExtractText(scope, ".REGISTERLAB"),
             Geo = geo,
             Variants = ExtractVariants(scope),
-            Synonyms = ExtractSynOrOpp(scope, ".SYN"),
-            Antonyms = ExtractSynOrOpp(scope, ".OPP"),
+            Synonyms = ExtractSynOrOpp(scope, "SYN"),
+            Antonyms = ExtractSynOrOpp(scope, "OPP"),
             Examples = ExtractExamples(scope),
             SenseLabel = senseLabel,
             Guideword = guideword,
@@ -713,21 +713,42 @@ public static class LongmanHtmlParser
         return string.IsNullOrEmpty(cleaned) ? null : cleaned;
     }
 
-    private static List<string> ExtractSynOrOpp(IElement senseElement, string selector)
+    /// <summary>
+    /// Synonyms/antonyms are found by their "SYN"/"OPP" label (.synopp) rather than by the wrapper's
+    /// class, since Longman uses several wrappers: .SYN/.OPP, but also .BREQUIV/.AMEQUIV for a
+    /// regional equivalent (e.g. American "yard" - <c>SYN garden</c> British English). Further words
+    /// in the same list follow as unlabeled sibling wrappers of the same class (<c>SYN improve</c>,
+    /// <c>, get better</c>). Separators (.neutral) and region labels (.geo) are dropped so only the
+    /// words themselves are kept.
+    /// </summary>
+    private static List<string> ExtractSynOrOpp(IElement senseElement, string label)
     {
         var results = new List<string>();
 
-        foreach (var element in senseElement.QuerySelectorAll(selector))
+        foreach (var marker in senseElement.QuerySelectorAll(".synopp"))
         {
-            var text = ExtractTextExcluding(element, ".synopp");
-            if (!string.IsNullOrEmpty(text))
+            if (marker.ParentElement is not { } wrapper || marker.TextContent.Trim() != label)
             {
-                results.Add(text);
+                continue;
+            }
+
+            for (var element = wrapper;
+                 element is not null && (element == wrapper || IsSynOppContinuation(element, wrapper));
+                 element = element.NextElementSibling)
+            {
+                var text = ExtractTextExcluding(element, ".synopp, .neutral, .geo");
+                if (!string.IsNullOrEmpty(text) && !results.Contains(text))
+                {
+                    results.Add(text);
+                }
             }
         }
 
         return results;
     }
+
+    private static bool IsSynOppContinuation(IElement element, IElement wrapper) =>
+        element.ClassName == wrapper.ClassName && element.QuerySelector(".synopp") is null;
 
     private static string? ExtractSpeakerAudio(IElement scope, string? accentClass)
     {
